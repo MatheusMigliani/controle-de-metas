@@ -156,7 +156,7 @@ export function HeroSection() {
           </div>
 
           {/* ─── Right ────────────────────────────────────────────── */}
-          <Card className="bg-white">
+          
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -236,7 +236,7 @@ export function HeroSection() {
             </SpotlightCard>
           </motion.div>
             
-          </Card>
+    
         </div>
       </div>
     </section>
