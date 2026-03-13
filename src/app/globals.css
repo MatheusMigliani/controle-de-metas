@@ -6,6 +6,56 @@
 
 @layer base {
   :root {
+    --background: 210 20% 98%;
+    --foreground: 213 50% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 213 50% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 50% 15%;
+
+    --primary: 200 78% 59%;
+    --primary-foreground: 0 0% 100%;
+
+    --brand-navy: 213 64% 21%;
+    --brand-blue: 204 55% 36%;
+    --brand-cyan: 200 78% 59%;
+
+    --secondary: 213 30% 92%;
+    --secondary-foreground: 213 50% 20%;
+
+    --muted: 213 20% 93%;
+    --muted-foreground: 213 20% 40%;
+
+    --accent: 213 25% 90%;
+    --accent-foreground: 213 50% 20%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 213 20% 86%;
+    --input: 213 20% 86%;
+    --ring: 200 78% 59%;
+    --radius: 0.75rem;
+
+    --status-concluida: 160 60% 38%;
+    --status-em-andamento: 43 96% 48%;
+    --status-nao-iniciada: 220 9% 46%;
+    --status-documento: 217 91% 55%;
+    --status-aguardando: 25 95% 48%;
+
+    --sidebar-background: 210 25% 95%;
+    --sidebar-foreground: 213 50% 15%;
+    --sidebar-primary: 200 78% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 213 25% 90%;
+    --sidebar-accent-foreground: 213 50% 20%;
+    --sidebar-border: 213 20% 86%;
+    --sidebar-ring: 200 78% 59%;
+  }
+
+  .dark {
     --background: 213 58% 11%;
     --foreground: 210 33% 97%;
 
@@ -33,7 +83,6 @@
     --border: 213 30% 22%;
     --input: 213 30% 22%;
     --ring: 189 100% 44%;
-    --radius: 0.75rem;
 
     --status-concluida: 160 60% 40%;
     --status-em-andamento: 43 96% 56%;
@@ -56,6 +105,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
   }
@@ -101,6 +151,26 @@
   .nav-link-active {
     @apply text-primary;
   }
+}
+
+@keyframes aurora-1 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  33%       { transform: translate(4%, -6%) scale(1.08); }
+  66%       { transform: translate(-3%, 4%) scale(0.94); }
+}
+@keyframes aurora-2 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  33%       { transform: translate(-5%, 3%) scale(0.93); }
+  66%       { transform: translate(4%, -4%) scale(1.10); }
+}
+@keyframes aurora-3 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  50%       { transform: translate(3%, -7%) scale(1.12); }
+}
+@keyframes aurora-4 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  40%       { transform: translate(-4%, 5%) scale(0.96); }
+  80%       { transform: translate(5%, -3%) scale(1.06); }
 }
 
 @keyframes shimmer {
