@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 213 58% 11%;
+    --foreground: 210 33% 97%;
+
+    --card: 213 50% 14%;
+    --card-foreground: 210 33% 97%;
+
+    --popover: 213 50% 14%;
+    --popover-foreground: 210 33% 97%;
+
+    --primary: 189 100% 44%;
+    --primary-foreground: 213 58% 11%;
+
+    --secondary: 213 40% 20%;
+    --secondary-foreground: 210 33% 97%;
+
+    --muted: 213 30% 18%;
+    --muted-foreground: 213 20% 55%;
+
+    --accent: 213 40% 22%;
+    --accent-foreground: 210 33% 97%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 33% 97%;
+
+    --border: 213 30% 22%;
+    --input: 213 30% 22%;
+    --ring: 189 100% 44%;
+    --radius: 0.75rem;
+
+    --status-concluida: 160 60% 40%;
+    --status-em-andamento: 43 96% 56%;
+    --status-nao-iniciada: 220 9% 46%;
+    --status-documento: 217 91% 60%;
+    --status-aguardando: 25 95% 53%;
+
+    --sidebar-background: 213 58% 8%;
+    --sidebar-foreground: 210 33% 97%;
+    --sidebar-primary: 189 100% 44%;
+    --sidebar-primary-foreground: 213 58% 11%;
+    --sidebar-accent: 213 40% 16%;
+    --sidebar-accent-foreground: 210 33% 97%;
+    --sidebar-border: 213 30% 18%;
+    --sidebar-ring: 189 100% 44%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-card/50 backdrop-blur-2xl border border-border/30 rounded-2xl;
+  }
+  .section-container {
+    @apply max-w-6xl mx-auto px-6 lg:px-8;
+  }
+  .gradient-mesh-bg {
+    background:
+      radial-gradient(ellipse at 15% 50%, hsl(189 100% 44% / 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 85% 20%, hsl(217 91% 60% / 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 90%, hsl(189 100% 44% / 0.03) 0%, transparent 50%);
+  }
+  .status-concluida {
+    @apply bg-[hsl(var(--status-concluida))] text-[hsl(var(--foreground))];
+  }
+  .status-em-andamento {
+    @apply bg-[hsl(var(--status-em-andamento))] text-[hsl(var(--background))];
+  }
+  .status-nao-iniciada {
+    @apply bg-[hsl(var(--status-nao-iniciada))] text-[hsl(var(--foreground))];
+  }
+  .status-documento {
+    @apply bg-[hsl(var(--status-documento))] text-[hsl(var(--foreground))];
+  }
+  .status-aguardando {
+    @apply bg-[hsl(var(--status-aguardando))] text-[hsl(var(--foreground))];
+  }
+  .nav-link {
+    @apply text-muted-foreground hover:text-foreground transition-colors duration-200 text-sm font-medium;
+  }
+  .nav-link-active {
+    @apply text-primary;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-200%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(3deg); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(-2deg); }
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+.animate-float-medium {
+  animation: float-medium 6s ease-in-out infinite;
+}
+.shimmer-line::after {
+  content: '';
+  @apply absolute inset-0;
+  background: linear-gradient(110deg, transparent 30%, hsl(var(--primary) / 0.2) 48%, hsl(var(--primary) / 0.35) 50%, hsl(var(--primary) / 0.2) 52%, transparent 70%);
+  animation: shimmer 4s ease-in-out infinite;
+}

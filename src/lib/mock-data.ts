@@ -1,0 +1,42 @@
+import { PlanoDeAcao, Etapa } from "./types";
+
+export const planos: PlanoDeAcao[] = [
+  { id: "1", code: "PA01", title: "Contratações Diretas", description: "Promover medidas mitigatórias de forma a reduzir a ocorrência de contratações diretas, de forma emergencial, sem as devidas exigências e/ou conformidades legais.", area: "DAF, NPC", created_at: "2025-01-10" },
+  { id: "2", code: "PA02", title: "Gestão de Pessoal", description: "Aprimorar os processos de gestão de pessoal, garantindo conformidade e eficiência nos procedimentos administrativos.", area: "RH", created_at: "2025-01-10" },
+  { id: "3", code: "PA03", title: "Controle de Almoxarifado", description: "Implementar sistema de controle de almoxarifado com rastreabilidade e inventário periódico.", area: "NGMC, DOP", created_at: "2025-01-15" },
+  { id: "4", code: "PA04", title: "Prestação de Contas", description: "Garantir a tempestividade e conformidade das prestações de contas dos convênios e contratos.", area: "DAF", created_at: "2025-01-20" },
+  { id: "5", code: "PA05", title: "Infraestrutura Tecnológica", description: "Modernizar a infraestrutura tecnológica das unidades de saúde.", area: "TI", created_at: "2025-02-01" },
+];
+
+const generateEtapas = (): Etapa[] => {
+  const statuses: Etapa["status"][] = ["Concluída", "Concluída", "Concluída", "Documento Gerado", "Em Andamento", "Não Iniciada", "Aguardando retorno da área", "Concluída", "Documento Gerado", "Concluída"];
+  const etapas: Etapa[] = [];
+  let id = 1;
+
+  planos.forEach((plan) => {
+    const count = 3 + Math.floor(Math.random() * 5);
+    for (let i = 1; i <= count; i++) {
+      const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, "0");
+      const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, "0");
+      const st = statuses[(id - 1) % statuses.length];
+      etapas.push({
+        id: String(id),
+        plan_id: plan.id,
+        step_number: i,
+        description: `Etapa ${i} do plano ${plan.code} — ${["Elaborar documentação", "Realizar levantamento", "Implementar controle", "Validar conformidade", "Publicar relatório", "Capacitar equipe", "Mapear processos"][i % 7]}`,
+        tema: `${i} – ${plan.title}`,
+        relacao_direta: plan.code,
+        area: plan.area,
+        prazo: `2025-${month}-${day}`,
+        status: st,
+        documento_comprobatorio: st === "Concluída" || st === "Documento Gerado" ? "Documento Gerado" : "",
+        drive_link: st === "Concluída" || st === "Documento Gerado" ? `https://drive.google.com/file/d/example${id}` : "",
+        created_at: plan.created_at,
+      });
+      id++;
+    }
+  });
+  return etapas;
+};
+
+export const etapas: Etapa[] = generateEtapas();
