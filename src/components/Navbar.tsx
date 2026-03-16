@@ -13,12 +13,14 @@ import {
   FileCheck2,
   BarChart3,
   Calendar,
+  Flag,
 } from "lucide-react";
-import { planos, etapas } from "@/lib/mock-data";
+import { planos, etapas, marcos } from "@/lib/mock-data";
 
 const navItems = [
   { id: "hero", label: "Início" },
   { id: "panorama", label: "Panorama" },
+  { id: "marcos", label: "Marcos" },
   { id: "planos", label: "Planos" },
   { id: "analise", label: "Análise" },
   { id: "calendario", label: "Calendário" },
@@ -88,6 +90,37 @@ function DropdownPlanos() {
   );
 }
 
+function DropdownMarcos() {
+  const proximos = marcos.filter((m) => {
+    const diff = new Date(m.date).getTime() - new Date("2026-03-16").getTime();
+    return diff / 86400000 > 1;
+  }).length;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10 shrink-0">
+          <Flag size={16} className="text-primary" />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold text-foreground">
+            Marcos do Processo
+          </span>
+          <span className="text-[11px] text-muted-foreground leading-relaxed">
+            {proximos} marcos próximos no ciclo de monitoramento.
+          </span>
+        </div>
+      </div>
+      <a
+        href="#marcos"
+        className="text-[11px] text-primary font-medium hover:underline"
+      >
+        Ver linha do tempo →
+      </a>
+    </div>
+  );
+}
+
 function DropdownAnalise() {
   return (
     <div className="flex flex-col gap-2">
@@ -142,6 +175,7 @@ function DropdownCalendario() {
 
 const dropdownContent: Record<string, React.ReactNode> = {
   panorama: <DropdownPanorama />,
+  marcos: <DropdownMarcos />,
   planos: <DropdownPlanos />,
   analise: <DropdownAnalise />,
   calendario: <DropdownCalendario />,

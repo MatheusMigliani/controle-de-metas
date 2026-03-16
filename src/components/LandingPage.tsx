@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { HeroSection } from "@/components/HeroSection";
 import { PanoramaSection } from "@/components/PanoramaSection";
+import { MarcosSection } from "@/components/MarcosSection";
 import { PlanosSection } from "@/components/PlanosSection";
 import { AnaliseSection } from "@/components/AnaliseSection";
 import { CalendarioSection } from "@/components/CalendarioSection";
@@ -157,6 +158,7 @@ const Landing = () => {
       <div key={resetKey}>
         <HeroSection />
         <PanoramaSection />
+        <MarcosSection />
         <PlanosSection />
         <AnaliseSection />
         <CalendarioSection />
