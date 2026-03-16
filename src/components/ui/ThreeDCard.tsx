@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useMotionTemplate, useMotionValue, useSpring, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 type MouseEnterContextType = [boolean, React.Dispatch<React.SetStateAction<boolean>>];
@@ -22,8 +23,15 @@ export function CardContainer({
   containerClassName?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const shineRef = useRef<HTMLDivElement>(null);
   const [isMouseEntered, setIsMouseEntered] = useState(false);
+
+  const mouseX = useMotionValue(50);
+  const mouseY = useMotionValue(50);
+
+  const springX = useSpring(mouseX, { stiffness: 150, damping: 20 });
+  const springY = useSpring(mouseY, { stiffness: 150, damping: 20 });
+
+  const borderGradient = useMotionTemplate`radial-gradient(circle at ${springX}% ${springY}%, rgba(66,185,235,0.75) 0%, rgba(255,255,255,0.25) 25%, transparent 60%)`;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
@@ -32,11 +40,8 @@ export function CardContainer({
     const y = (e.clientY - top - height / 2) / 30;
     containerRef.current.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
 
-    if (shineRef.current) {
-      const px = ((e.clientX - left) / width) * 100;
-      const py = ((e.clientY - top) / height) * 100;
-      shineRef.current.style.background = `radial-gradient(circle at ${px}% ${py}%, rgba(66,185,235,0.55) 0%, rgba(66,185,235,0.10) 40%, transparent 65%)`;
-    }
+    mouseX.set(((e.clientX - left) / width) * 100);
+    mouseY.set(((e.clientY - top) / height) * 100);
   };
 
   const handleMouseLeave = () => {
@@ -44,9 +49,8 @@ export function CardContainer({
     if (containerRef.current) {
       containerRef.current.style.transform = `rotateY(0deg) rotateX(0deg)`;
     }
-    if (shineRef.current) {
-      shineRef.current.style.background = "transparent";
-    }
+    mouseX.set(50);
+    mouseY.set(50);
   };
 
   return (
@@ -63,17 +67,23 @@ export function CardContainer({
           className={cn("relative transition-all duration-200 ease-linear", className)}
           style={{ transformStyle: "preserve-3d" }}
         >
-          {children}
-          <div
-            ref={shineRef}
+          {/* Shiny border overlay — mask exclui centro, mostra apenas 1px de borda */}
+          <motion.div
             aria-hidden
-            className="pointer-events-none absolute rounded-2xl transition-opacity duration-300"
+            className="pointer-events-none absolute rounded-2xl transition-opacity duration-500"
             style={{
-              inset: "-1px",
-              zIndex: -1,
+              inset: 0,
+              padding: "1px",
+              background: borderGradient,
+              WebkitMask:
+                "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
               opacity: isMouseEntered ? 1 : 0,
+              zIndex: 10,
             }}
           />
+          {children}
         </div>
       </div>
     </MouseEnterContext.Provider>

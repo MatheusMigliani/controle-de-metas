@@ -161,7 +161,7 @@ export function HeroSection() {
             className="flex-1 w-full max-w-sm lg:max-w-md"
           >
             <CardContainer className="w-full" containerClassName="w-full">
-              <CardBody className="w-full bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5 flex flex-col gap-4">
+              <CardBody className="w-full bg-white/[0.06]  border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5 flex flex-col gap-4">
 
                 {/* Carousel — z base */}
                 <CardItem translateZ={15} className="w-full overflow-hidden rounded-xl">
