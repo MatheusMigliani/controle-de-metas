@@ -231,6 +231,7 @@ export function Navbar() {
                 >
                   <a
                     href={`#${item.id}`}
+                    onClick={() => setTimeout(() => window.dispatchEvent(new Event("backtotop")), 150)}
                     className={`relative flex items-center text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
                       isActive
                         ? "text-primary"

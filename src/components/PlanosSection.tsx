@@ -6,6 +6,7 @@ import { planos, etapas } from "@/lib/mock-data";
 import { StatusBadge } from "./StatusBadge";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { ExternalLink, ChevronRight } from "lucide-react";
+import { ScrollIndicator } from "@/components/ui/ScrollIndicator";
 
 export function PlanosSection() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -145,6 +146,7 @@ export function PlanosSection() {
           )}
         </AnimatePresence>
       </div>
+      <ScrollIndicator href="#analise" />
     </section>
   );
 }
