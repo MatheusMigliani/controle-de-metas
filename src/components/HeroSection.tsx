@@ -1,12 +1,13 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Clock3, FileCheck2, LayoutList, TrendingUp } from "lucide-react";
 import { etapas, planos } from "@/lib/mock-data";
-import SpotlightCard from "@/components/SpotlightCard";
-import { DecryptedText } from "@/components/ui/DecryptedText";
+import { SplitText } from "@/components/ui/SplitText";
+import { ScrollIndicator } from "@/components/ui/ScrollIndicator";
 import Image from "next/image";
-import { Card } from "./ui/card";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/ThreeDCard";
+import SpotlightCard from "@/components/SpotlightCard";
 
 const stats = (() => {
   const total = etapas.length;
@@ -36,13 +37,11 @@ const CROSSES = [
 ];
 
 export function HeroSection() {
-  const prefersReduced = useReducedMotion();
 
   return (
     <section
       id="hero"
       className="relative min-h-screen flex items-center overflow-hidden py-28"
-      style={{ backgroundColor: "#13335a" }}
     >
       {/* ── Aurora blobs ────────────────────────────────────────────── */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -52,7 +51,7 @@ export function HeroSection() {
           style={{
             background: "radial-gradient(circle, #42b9eb 0%, transparent 70%)",
             filter: "blur(80px)",
-            animation: prefersReduced ? "none" : "aurora-1 18s ease-in-out infinite",
+            animation: "aurora-1 18s ease-in-out infinite",
           }}
         />
         {/* Blob 2 — azul médio, centro-direita */}
@@ -61,7 +60,7 @@ export function HeroSection() {
           style={{
             background: "radial-gradient(circle, #2a688f 0%, transparent 70%)",
             filter: "blur(90px)",
-            animation: prefersReduced ? "none" : "aurora-2 22s ease-in-out infinite",
+            animation: "aurora-2 22s ease-in-out infinite",
           }}
         />
         {/* Blob 3 — cyan claro, centro-baixo */}
@@ -70,7 +69,7 @@ export function HeroSection() {
           style={{
             background: "radial-gradient(circle, #42b9eb 0%, transparent 70%)",
             filter: "blur(100px)",
-            animation: prefersReduced ? "none" : "aurora-3 26s ease-in-out infinite",
+            animation: "aurora-3 26s ease-in-out infinite",
           }}
         />
         {/* Blob 4 — azul escuro, canto inferior direito */}
@@ -79,7 +78,7 @@ export function HeroSection() {
           style={{
             background: "radial-gradient(circle, #1a4a7a 0%, transparent 70%)",
             filter: "blur(70px)",
-            animation: prefersReduced ? "none" : "aurora-4 20s ease-in-out infinite",
+            animation: "aurora-4 20s ease-in-out infinite",
           }}
         />
       </div>
@@ -101,25 +100,24 @@ export function HeroSection() {
           <div className="flex-1 flex flex-col gap-6 lg:pl-4">
 
             {/* Título */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="flex flex-col gap-1"
-            >
-              <DecryptedText
+            <div className="flex flex-col gap-1">
+              <SplitText
                 text="Controle de"
-                delay={200}
-                speed={40}
+                tag="h1"
+                delay={40}
+                duration={0.7}
+                rootMargin="0px"
                 className="text-5xl lg:text-6xl xl:text-7xl font-display font-semibold leading-tight tracking-tight text-white"
               />
-              <DecryptedText
-                text="Metas"
-                delay={500}
-                speed={50}
+              <motion.span
+                initial={{ opacity: 0, y: 28, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.7, delay: 0.48, ease: [0.22, 1, 0.36, 1] }}
                 className="text-5xl lg:text-6xl xl:text-7xl font-display font-bold leading-tight tracking-tight bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] bg-clip-text text-transparent"
-              />
-            </motion.div>
+              >
+                Metas
+              </motion.span>
+            </div>
 
             {/* Logos */}
             <motion.div
@@ -155,90 +153,100 @@ export function HeroSection() {
             </motion.a>
           </div>
 
-          {/* ─── Right ────────────────────────────────────────────── */}
-          
+          {/* ─── Right — 3D Card ──────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1  w-full max-w-sm lg:max-w-md flex flex-col gap-4"
+            className="flex-1 w-full max-w-sm lg:max-w-md"
           >
-            {/* Carousel */}
-            <div className="overflow-hidden rounded-xl">
-              <motion.div
-                className="flex gap-2 w-max"
-                animate={{ x: ["0%", "-50%"] }}
-                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-              >
-                {AREAS.map((area, i) => (
-                  <span key={i} className="shrink-0 px-4 py-2 rounded-full text-xs font-semibold font-display tracking-wide bg-white/10 border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] text-white/70">
-                    {area}
-                  </span>
-                ))}
-              </motion.div>
-            </div>
+            <CardContainer className="w-full" containerClassName="w-full">
+              <CardBody className="w-full bg-white/[0.06]  border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5 flex flex-col gap-4">
 
-            {/* Card Progresso */}
-            <SpotlightCard
-              spotlightColor="rgba(66, 185, 235, 0.18)"
-              className="bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#42b9eb] animate-pulse" />
-                  <span className="text-white/40 text-xs uppercase tracking-widest font-medium">Progresso Geral</span>
-                </div>
-                <TrendingUp size={15} className="text-[#42b9eb]" />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <span className="text-4xl font-display font-bold text-white leading-none">{stats.pct}%</span>
-                  <p className="text-white/30 text-xs mt-1">{stats.concluidas} de {stats.total} etapas</p>
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between text-[10px] text-white/30 mb-1.5">
-                    <span>0%</span>
-                    <span className="text-[#42b9eb] font-medium">{stats.pct}%</span>
-                    <span>100%</span>
-                  </div>
-                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-[#42b9eb] rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${stats.pct}%` }}
-                      transition={{ duration: 1.2, delay: 0.9, ease: "easeOut" }}
-                    />
-                  </div>
-                  <p className="text-white/30 text-[10px] mt-1.5">Plano de Ação 2025</p>
-                </div>
-              </div>
-            </SpotlightCard>
+                {/* Carousel — z base */}
+                <CardItem translateZ={15} className="w-full overflow-hidden rounded-xl">
+                  <motion.div
+                    className="flex gap-2 w-max"
+                    animate={{ x: ["0%", "-50%"] }}
+                    transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+                  >
+                    {AREAS.map((area, i) => (
+                      <span key={i} className="shrink-0 px-4 py-2 rounded-full text-xs font-semibold font-display tracking-wide bg-white/10 border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] text-white/70">
+                        {area}
+                      </span>
+                    ))}
+                  </motion.div>
+                </CardItem>
 
-            {/* Card Stats */}
-            <SpotlightCard
-              spotlightColor="rgba(66, 185, 235, 0.12)"
-              className="bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-4"
-            >
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { icon: <LayoutList size={13} className="text-white/50" />,    value: stats.planos,     label: "Planos"     },
-                  { icon: <CheckCircle2 size={13} className="text-emerald-400"/>, value: stats.concluidas, label: "Concluídas" },
-                  { icon: <Clock3 size={13} className="text-yellow-400" />,       value: stats.emAndamento,label: "Andamento"  },
-                  { icon: <FileCheck2 size={13} className="text-[#42b9eb]" />,    value: stats.docs,       label: "Docs"       },
-                ].map((s, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1 py-3 rounded-xl bg-white/5 border border-white/[0.08]">
-                    {s.icon}
-                    <span className="text-white font-bold text-lg leading-none">{s.value}</span>
-                    <span className="text-white/30 text-[10px]">{s.label}</span>
-                  </div>
-                ))}
-              </div>
-            </SpotlightCard>
+                {/* Card Progresso — z médio */}
+                <CardItem translateZ={40} className="w-full">
+                  <SpotlightCard
+                    spotlightColor="rgba(66, 185, 235, 0.18)"
+                    className="bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#42b9eb] animate-pulse" />
+                        <span className="text-white/40 text-xs uppercase tracking-widest font-medium">Progresso Geral</span>
+                      </div>
+                      <TrendingUp size={15} className="text-[#42b9eb]" />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-4xl font-display font-bold text-white leading-none">{stats.pct}%</span>
+                        <p className="text-white/30 text-xs mt-1">{stats.concluidas} de {stats.total} etapas</p>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between text-[10px] text-white/30 mb-1.5">
+                          <span>0%</span>
+                          <span className="text-[#42b9eb] font-medium">{stats.pct}%</span>
+                          <span>100%</span>
+                        </div>
+                        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full bg-[#42b9eb] rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${stats.pct}%` }}
+                            transition={{ duration: 1.2, delay: 0.9, ease: "easeOut" }}
+                          />
+                        </div>
+                        <p className="text-white/30 text-[10px] mt-1.5">Plano de Ação 2025</p>
+                      </div>
+                    </div>
+                  </SpotlightCard>
+                </CardItem>
+
+                {/* Card Stats — z alto */}
+                <CardItem translateZ={60} className="w-full">
+                  <SpotlightCard
+                    spotlightColor="rgba(66, 185, 235, 0.12)"
+                    className="bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-4"
+                  >
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { icon: <LayoutList size={13} className="text-white/50" />,     value: stats.planos,      label: "Planos"     },
+                        { icon: <CheckCircle2 size={13} className="text-emerald-400" />, value: stats.concluidas,  label: "Concluídas" },
+                        { icon: <Clock3 size={13} className="text-yellow-400" />,        value: stats.emAndamento, label: "Andamento"  },
+                        { icon: <FileCheck2 size={13} className="text-[#42b9eb]" />,     value: stats.docs,        label: "Docs"       },
+                      ].map((s, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1 py-3 rounded-xl bg-white/5 border border-white/[0.08]">
+                          {s.icon}
+                          <span className="text-white font-bold text-lg leading-none">{s.value}</span>
+                          <span className="text-white/30 text-[10px]">{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </SpotlightCard>
+                </CardItem>
+
+              </CardBody>
+            </CardContainer>
           </motion.div>
-            
-    
+
         </div>
       </div>
+
+      <ScrollIndicator href="#panorama" delay={1.4} />
     </section>
   );
 }
