@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { CheckCircle2, Clock3, CalendarClock } from "lucide-react";
+import { CheckCircle2, Clock3, CalendarClock, type LucideIcon } from "lucide-react";
 import { marcos, type Marco } from "@/lib/mock-data";
 import SpotlightCard from "@/components/SpotlightCard";
 import { SplitText } from "@/components/ui/SplitText";
@@ -31,7 +31,7 @@ function getDaysUntil(isoDate: string): number {
 
 const STATUS_CONFIG: Record<
   MarcoStatus,
-  { color: string; bgColor: string; dotColor: string; Icon: React.ElementType }
+  { color: string; bgColor: string; dotColor: string; Icon: LucideIcon }
 > = {
   Concluído: {
     color: "text-emerald-400",
