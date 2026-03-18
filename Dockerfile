@@ -1,13 +1,14 @@
 FROM node:22-alpine AS base
-RUN npm install -g pnpm@9
 
 # ── Dependências ──────────────────────────────────────────────────────────────
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json package-lock.json .npmrc ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM base AS builder
@@ -18,7 +19,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN pnpm build
+RUN npm run build
 
 # ── Runner ────────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
@@ -31,6 +32,8 @@ RUN addgroup --system --gid 1001 nodejs \
  && adduser  --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
+
+RUN mkdir .next && chown nextjs:nodejs .next
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

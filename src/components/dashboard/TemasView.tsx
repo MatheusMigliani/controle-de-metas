@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetorAutocomplete } from "@/components/ui/SetorAutocomplete";
 import { toast } from "sonner";
+import { useMetaHub, MetaStatus as LiveMetaStatus } from "@/hooks/useMetaHub";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,11 +62,17 @@ const META_STATUS_ENUM: Record<MetaStatus, number> = {
 
 // ── MetaCard ──────────────────────────────────────────────────────────────────
 
-function MetaCard({ meta }: { meta: Meta }) {
+function MetaCard({ meta, liveStatus }: { meta: Meta; liveStatus?: MetaStatus }) {
   const { user } = useAuth();
   const [status, setStatus] = useState<MetaStatus>(meta.status);
   const [loading, setLoading] = useState(false);
   const cfg = STATUS_CONFIG[status];
+
+  // Sync when an external SignalR update arrives
+  useEffect(() => {
+    if (liveStatus && liveStatus !== status) setStatus(liveStatus);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveStatus]);
 
   const canChangeStatus =
     user?.role === "Admin" ||
@@ -191,11 +198,12 @@ function StatusSelector({ current, available, onSelect, loading }: StatusSelecto
 // ── TopicoCard ────────────────────────────────────────────────────────────────
 
 interface TopicoCardProps {
-  topico: Topico;
-  onAddMeta: (topicoId: string) => void;
+  topico:       Topico;
+  onAddMeta:    (topicoId: string) => void;
+  liveStatuses: Map<string, MetaStatus>;
 }
 
-function TopicoCard({ topico, onAddMeta }: TopicoCardProps) {
+function TopicoCard({ topico, onAddMeta, liveStatuses }: TopicoCardProps) {
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const done  = topico.metas.filter((m) => m.status === "Concluido").length;
@@ -256,7 +264,9 @@ function TopicoCard({ topico, onAddMeta }: TopicoCardProps) {
                   </Button>
                 )}
               </div>
-              {topico.metas.map((meta) => <MetaCard key={meta.id} meta={meta} />)}
+              {topico.metas.map((meta) => (
+                <MetaCard key={meta.id} meta={meta} liveStatus={liveStatuses.get(meta.id)} />
+              ))}
               {topico.metas.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-2">Nenhuma meta cadastrada.</p>
               )}
@@ -273,9 +283,11 @@ function TopicoCard({ topico, onAddMeta }: TopicoCardProps) {
 
 export function TemasView() {
   const { user } = useAuth();
-  const [temas, setTemas]   = useState<Tema[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [temas, setTemas]       = useState<Tema[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [liveStatuses, setLiveStatuses] = useState<Map<string, MetaStatus>>(new Map());
+  const [hubConnected, setHubConnected] = useState(false);
 
   // New Theme state
   const [isTemaDialogOpen, setIsTemaDialogOpen] = useState(false);
@@ -294,6 +306,29 @@ export function TemasView() {
   const [newMetaDesc, setNewMetaDesc] = useState("");
   const [isCreatingMeta, setIsCreatingMeta] = useState(false);
 
+  // ── SignalR: real-time meta updates ──────────────────────────────────────────
+  const handleMetaStatusChanged = useCallback(
+    ({ metaId, status }: { metaId: string; topicoId: string; status: MetaStatus }) => {
+      setLiveStatuses((prev) => new Map(prev).set(metaId, status));
+      setHubConnected(true);
+    },
+    []
+  );
+
+  const handleMetaCreated = useCallback(() => {
+    // Refetch to insert the new meta into the correct tópico
+    fetchTemasRef.current?.();
+    setHubConnected(true);
+  }, []);
+
+  useMetaHub({
+    onMetaStatusChanged: handleMetaStatusChanged,
+    onMetaCreated:       handleMetaCreated,
+  });
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const fetchTemasRef = useRef<(() => void) | null>(null);
+
   const fetchTemas = async () => {
     try {
       const r = await api.get<{ success: boolean; data: Tema[] }>("/temas");
@@ -304,6 +339,9 @@ export function TemasView() {
       setLoading(false);
     }
   };
+
+  // Keep ref current so the SignalR callback always calls the latest version
+  fetchTemasRef.current = fetchTemas;
 
   useEffect(() => {
     fetchTemas();
@@ -377,7 +415,9 @@ export function TemasView() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Temas & Metas</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground">Temas & Metas</h2>
+          </div>
           <p className="text-sm text-muted-foreground mt-0.5">Hierarquia: Tema → Tópico → Meta</p>
         </div>
         {user?.role === "Admin" && (
@@ -555,9 +595,10 @@ export function TemasView() {
                 >
                   <div className="px-4 pb-4 flex flex-col gap-2 border-t border-border/40 pt-3">
                     {tema.topicos.map((t) => (
-                      <TopicoCard 
-                        key={t.id} 
-                        topico={t} 
+                      <TopicoCard
+                        key={t.id}
+                        topico={t}
+                        liveStatuses={liveStatuses}
                         onAddMeta={(id) => {
                           setSelectedTopicoId(id);
                           setIsMetaDialogOpen(true);

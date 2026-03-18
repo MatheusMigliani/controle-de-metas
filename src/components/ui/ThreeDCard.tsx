@@ -119,7 +119,7 @@ export function CardItem({
   ...rest
 }: {
   as?: React.ElementType;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   translateZ?: number;
   translateX?: number;
@@ -138,14 +138,16 @@ export function CardItem({
     }
   }, [isMouseEntered, translateX, translateY, translateZ]);
 
+  const TagEl = Tag as any; // React.ElementType não aceita ref diretamente
+
   return (
-    <Tag
+    <TagEl
       ref={ref}
       className={cn("transition-all duration-200 ease-linear", className)}
       {...rest}
     >
       {children}
-    </Tag>
+    </TagEl>
   );
 }
 
