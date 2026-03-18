@@ -214,7 +214,7 @@ export function Globe({ globeConfig, data, markers }: WorldProps) {
   }, [
     isInitialized,
     data,
-    markers, // eslint-disable-line react-hooks/exhaustive-deps
+    markers,
     defaultProps.pointSize,
     defaultProps.showAtmosphere,
     defaultProps.atmosphereColor,
@@ -273,7 +273,7 @@ export function WebGLRendererConfig() {
     gl.setPixelRatio(window.devicePixelRatio);
     gl.setSize(size.width, size.height);
     gl.setClearColor(0xffaaff, 0);
-  }, []);
+  }, [gl, size.width, size.height]);
 
   return null;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
 import { Users, ShieldCheck, Loader2, Search } from "lucide-react";
@@ -108,7 +109,7 @@ export function UsuariosView() {
               {/* Avatar */}
               <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-border/50 shrink-0">
                 {u.picture ? (
-                  <img src={u.picture} alt={u.name} className="w-full h-full object-cover" />
+                  <Image src={u.picture} alt={u.name} width={36} height={36} unoptimized className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                     {u.name.charAt(0).toUpperCase()}

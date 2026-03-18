@@ -10,6 +10,7 @@ import {
   BarChart3, Target,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Role } from "@/lib/auth";
 
 type View = "temas" | "usuarios";
@@ -57,7 +58,7 @@ export function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-primary/20 shrink-0">
               {user.picture ? (
-                <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+                <Image src={user.picture} alt={user.name} width={36} height={36} unoptimized className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-primary/20 flex items-center justify-center font-bold text-primary">
                   {user.name.charAt(0)}
@@ -94,11 +95,11 @@ export function DashboardPage() {
 
         {/* Footer */}
         <div className="px-3 py-4 border-t border-border/50 flex flex-col gap-1">
-          <a href="/"
+          <Link href="/"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
             <Home size={16} />
             Página Inicial
-          </a>
+          </Link>
           <button onClick={logout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all">
             <LogOut size={16} />

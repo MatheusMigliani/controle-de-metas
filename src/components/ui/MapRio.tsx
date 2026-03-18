@@ -23,10 +23,8 @@ interface PinPos {
   y: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function calcPinPos(map: maplibregl.Map): PinPos {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const transform = (map as any).transform;
+  const transform = (map as any).transform; // acesso interno não tipado do MapLibre
 
   const coordGround = maplibregl.MercatorCoordinate.fromLngLat(
     { lng: RIO_LNG, lat: RIO_LAT },
