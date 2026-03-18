@@ -1,13 +1,12 @@
 FROM node:22-alpine AS base
-RUN npm install -g pnpm@9
 
 # ── Dependências ──────────────────────────────────────────────────────────────
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM base AS builder
@@ -18,7 +17,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN pnpm build
+RUN npm run build
 
 # ── Runner ────────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner

@@ -8,3 +8,5 @@ npm-debug.log*
 Dockerfile
 .dockerignore
 README.md
+pnpm-lock.yaml
+bun.lock
