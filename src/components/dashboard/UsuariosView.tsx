@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, ShieldCheck, Loader2, Search, ChevronDown, Check, AlertCircle } from "lucide-react";
@@ -32,11 +32,17 @@ export function UsuariosView() {
   const [search,  setSearch]  = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
 
+  const mountedRef = useRef(false);
+
   useEffect(() => {
-    api.get<{ success: boolean; data: User[] }>("/users")
-      .then((r) => setUsers(r.data.data))
-      .catch(() => toast.error("Erro ao carregar os usuários."))
-      .finally(() => setLoading(false));
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      api.get<{ success: boolean; data: User[] }>("/users")
+        .then((r) => setUsers(r.data.data))
+        .catch(() => toast.error("Erro ao carregar os usuários."))
+        .finally(() => setLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleRoleChange(userId: string, newRole: Role) {

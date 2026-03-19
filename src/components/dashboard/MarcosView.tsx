@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -185,12 +185,17 @@ export function MarcosView() {
 
   const [form, setForm] = useState<MarcoFormData>(EMPTY_FORM);
 
-  // ── Data fetching ────────────────────────────────────────────────────────────
+  const mountedRef = useRef(false);
+
   useEffect(() => {
-    api.get<{ success: boolean; data: Marco[] }>("/marcos")
-      .then((r) => setMarcos(r.data.data))
-      .catch(() => toast.error("Erro ao carregar marcos."))
-      .finally(() => setLoading(false));
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      api.get<{ success: boolean; data: Marco[] }>("/marcos")
+        .then((r) => setMarcos(r.data.data))
+        .catch(() => toast.error("Erro ao carregar marcos."))
+        .finally(() => setLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

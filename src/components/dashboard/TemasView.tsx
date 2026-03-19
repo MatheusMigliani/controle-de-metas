@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio, Paperclip, FileText, Trash2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetorAutocomplete } from "@/components/ui/SetorAutocomplete";
 import { toast } from "sonner";
-import { useMetaHub, MetaStatus as LiveMetaStatus } from "@/hooks/useMetaHub";
+import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload } from "@/hooks/useMetaHub";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,6 +22,14 @@ interface Meta {
   status:      MetaStatus;
   createdAt?:  string;
   updatedAt?:  string;
+}
+
+interface TopicoDocumento {
+  id:         string;
+  topicoId:   string;
+  nome:       string;
+  driveUrl:   string;
+  uploadedAt: string;
 }
 
 interface Topico {
@@ -198,17 +206,70 @@ function StatusSelector({ current, available, onSelect, loading }: StatusSelecto
 // ── TopicoCard ────────────────────────────────────────────────────────────────
 
 interface TopicoCardProps {
-  topico:       Topico;
-  onAddMeta:    (topicoId: string) => void;
-  liveStatuses: Map<string, MetaStatus>;
+  topico:            Topico;
+  onAddMeta:         (topicoId: string) => void;
+  liveStatuses:      Map<string, MetaStatus>;
+  documents:         TopicoDocumento[];
+  onDocumentsChange: (topicoId: string, docs: TopicoDocumento[]) => void;
 }
 
-function TopicoCard({ topico, onAddMeta, liveStatuses }: TopicoCardProps) {
+function TopicoCard({ topico, onAddMeta, liveStatuses, documents, onDocumentsChange }: TopicoCardProps) {
   const { user } = useAuth();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded]     = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
+  const [docLoading, setDocLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const done  = topico.metas.filter((m) => m.status === "Concluido").length;
   const total = topico.metas.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const canManageDocs = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
+
+  // Lazy-fetch documents on first expand
+  useEffect(() => {
+    if (!expanded || hasFetched) return;
+    setHasFetched(true);
+    setDocLoading(true);
+    api.get<{ data: TopicoDocumento[] }>(`/topicos/${topico.id}/documents`)
+      .then((r) => onDocumentsChange(topico.id, r.data.data))
+      .catch(() => {/* silently ignore */})
+      .finally(() => setDocLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const r = await api.post<{ data: TopicoDocumento }>(
+        `/topicos/${topico.id}/documents`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      onDocumentsChange(topico.id, [r.data.data, ...documents]);
+      toast.success("Documento anexado com sucesso!");
+    } catch {
+      toast.error("Erro ao enviar o documento.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteDoc(docId: string) {
+    try {
+      await api.delete(`/topicos/${topico.id}/documents/${docId}`);
+      onDocumentsChange(topico.id, documents.filter((d) => d.id !== docId));
+      toast.success("Documento removido.");
+    } catch {
+      toast.error("Erro ao remover o documento.");
+    }
+  }
 
   return (
     <div className="border border-border/50 rounded-xl">
@@ -228,6 +289,14 @@ function TopicoCard({ topico, onAddMeta, liveStatuses }: TopicoCardProps) {
             <span className="text-[11px] text-muted-foreground">{topico.setorResponsavel}</span>
             <span className="text-[11px] text-muted-foreground">·</span>
             <span className="text-[11px] text-primary font-medium">{done}/{total} concluídas</span>
+            {documents.length > 0 && (
+              <>
+                <span className="text-[11px] text-muted-foreground">·</span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Paperclip size={10} />{documents.length} doc{documents.length !== 1 ? "s" : ""}
+                </span>
+              </>
+            )}
           </div>
         </div>
         {/* Mini progress */}
@@ -260,7 +329,7 @@ function TopicoCard({ topico, onAddMeta, liveStatuses }: TopicoCardProps) {
                 {user?.role === "Admin" && (
                   <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2" onClick={() => onAddMeta(topico.id)}>
                     <Plus size={12} />
-                    Criar Meta
+                    Criar Objetivo
                   </Button>
                 )}
               </div>
@@ -268,8 +337,92 @@ function TopicoCard({ topico, onAddMeta, liveStatuses }: TopicoCardProps) {
                 <MetaCard key={meta.id} meta={meta} liveStatus={liveStatuses.get(meta.id)} />
               ))}
               {topico.metas.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-2">Nenhuma meta cadastrada.</p>
+                <p className="text-xs text-muted-foreground text-center py-2">Nenhuma etapa cadastrada.</p>
               )}
+
+              {/* ── Documentos ─────────────────────────────────────────────── */}
+              <div className="mt-4 bg-slate-50/50 dark:bg-white/[0.01] rounded-xl border border-border/40 p-3">
+                <div className="flex items-center justify-between mb-3 pl-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                    <Paperclip size={12} />
+                    Documentos Anexados
+                  </span>
+                  {canManageDocs && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-[10px] gap-1.5 px-3 bg-white dark:bg-slate-900 border border-border/50 hover:bg-slate-100 dark:hover:bg-white/5 shadow-sm rounded-lg"
+                        disabled={isUploading}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {isUploading
+                          ? <Loader2 size={12} className="animate-spin text-primary" />
+                          : <Upload size={12} className="text-primary" />
+                        }
+                        <span className="font-semibold">{isUploading ? "Enviando..." : "Anexar arquivo"}</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {docLoading ? (
+                  <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground">
+                    <Loader2 size={14} className="animate-spin text-primary/60" />
+                    <span className="text-xs font-medium">Buscando documentos...</span>
+                  </div>
+                ) : documents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-6 border border-dashed border-border/60 rounded-xl bg-white/50 dark:bg-slate-950/20">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
+                       <Paperclip size={14} className="text-muted-foreground/60" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Nenhum documento anexado a esta etapa.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-border/50 hover:border-primary/40 hover:shadow-sm group transition-all"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                           <FileText size={14} className="text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <a
+                            href={doc.driveUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-[12px] font-semibold text-foreground hover:text-primary transition-colors truncate mb-0.5"
+                          >
+                            {doc.nome}
+                          </a>
+                          <span className="block text-[9px] text-muted-foreground font-medium uppercase tracking-wider">
+                            Adicionado em {new Date(doc.uploadedAt).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+                        {canManageDocs && (
+                          <button
+                            onClick={() => handleDeleteDoc(doc.id)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                            title="Remover documento"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -286,7 +439,8 @@ export function TemasView() {
   const [temas, setTemas]       = useState<Tema[]>([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [liveStatuses, setLiveStatuses] = useState<Map<string, MetaStatus>>(new Map());
+  const [liveStatuses, setLiveStatuses]       = useState<Map<string, MetaStatus>>(new Map());
+  const [topicoDocumentos, setTopicoDocumentos] = useState<Map<string, TopicoDocumento[]>>(new Map());
   const [hubConnected, setHubConnected] = useState(false);
 
   // New Theme state
@@ -297,7 +451,7 @@ export function TemasView() {
   // New Topic state
   const [isTopicDialogOpen, setIsTopicDialogOpen] = useState(false);
   const [selectedTemaId, setSelectedTemaId] = useState<string | null>(null);
-  const [newTopic, setNewTopic] = useState({ descricao: "", setorResponsavel: [] as string[], pontosFocais: "" });
+  const [newTopic, setNewTopic] = useState({ descricao: "", setorResponsavel: [] as string[], pontosFocais: "", nomePastaDrive: "" });
   const [isCreatingTopic, setIsCreatingTopic] = useState(false);
 
   // New Meta state
@@ -316,14 +470,37 @@ export function TemasView() {
   );
 
   const handleMetaCreated = useCallback(() => {
-    // Refetch to insert the new meta into the correct tópico
     fetchTemasRef.current?.();
     setHubConnected(true);
   }, []);
 
+  const handleTopicoDocumentAdded = useCallback((payload: TopicoDocumentoPayload) => {
+    setTopicoDocumentos((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(payload.topicoId) ?? [];
+      // Avoid duplicates (e.g., when uploader receives their own SignalR event)
+      if (!existing.find((d) => d.id === payload.id)) {
+        next.set(payload.topicoId, [payload as TopicoDocumento, ...existing]);
+      }
+      return next;
+    });
+    setHubConnected(true);
+  }, []);
+
+  const handleTopicoDocumentRemoved = useCallback((payload: TopicoDocumentoRemovedPayload) => {
+    setTopicoDocumentos((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(payload.topicoId) ?? [];
+      next.set(payload.topicoId, existing.filter((d) => d.id !== payload.docId));
+      return next;
+    });
+  }, []);
+
   useMetaHub({
-    onMetaStatusChanged: handleMetaStatusChanged,
-    onMetaCreated:       handleMetaCreated,
+    onMetaStatusChanged:     handleMetaStatusChanged,
+    onMetaCreated:           handleMetaCreated,
+    onTopicoDocumentAdded:   handleTopicoDocumentAdded,
+    onTopicoDocumentRemoved: handleTopicoDocumentRemoved,
   });
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -340,11 +517,21 @@ export function TemasView() {
     }
   };
 
+  const handleDocumentsChange = useCallback((topicoId: string, docs: TopicoDocumento[]) => {
+    setTopicoDocumentos((prev) => new Map(prev).set(topicoId, docs));
+  }, []);
+
   // Keep ref current so the SignalR callback always calls the latest version
   fetchTemasRef.current = fetchTemas;
 
+  const mountedRef = useRef(false);
+
   useEffect(() => {
-    fetchTemas();
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      fetchTemas();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreateTema() {
@@ -371,14 +558,15 @@ export function TemasView() {
         temaId: selectedTemaId,
         descricao: newTopic.descricao,
         setorResponsavel: newTopic.setorResponsavel.join(","),
-        pontosFocais: newTopic.pontosFocais.split(",").map(s => s.trim()).filter(Boolean)
+        pontosFocais: newTopic.pontosFocais.split(",").map(s => s.trim()).filter(Boolean),
+        nomePastaDrive: newTopic.nomePastaDrive.trim() || null,
       });
-      toast.success("Tópico criado com sucesso!");
+      toast.success("Meta criada com sucesso!");
       setIsTopicDialogOpen(false);
-      setNewTopic({ descricao: "", setorResponsavel: [], pontosFocais: "" });
+      setNewTopic({ descricao: "", setorResponsavel: [], pontosFocais: "", nomePastaDrive: "" });
       fetchTemas();
     } catch {
-      toast.error("Erro ao criar o tópico.");
+      toast.error("Erro ao criar a meta.");
     } finally {
       setIsCreatingTopic(false);
     }
@@ -416,9 +604,9 @@ export function TemasView() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-foreground">Temas & Metas</h2>
+            <h2 className="text-xl font-bold text-foreground">Temas & Etapas</h2>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">Hierarquia: Tema → Tópico → Meta</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Hierarquia: Tema → Etapa → Objetivo</p>
         </div>
         {user?.role === "Admin" && (
           <Button onClick={() => setIsTemaDialogOpen(true)} className="gap-2 text-white">
@@ -458,7 +646,7 @@ export function TemasView() {
       <Dialog open={isTopicDialogOpen} onOpenChange={setIsTopicDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Criar Novo Tópico</DialogTitle>
+            <DialogTitle>Criar Nova Meta</DialogTitle>
           </DialogHeader>
           <div className="py-2 flex flex-col gap-4">
             <div className="space-y-1.5">
@@ -478,10 +666,20 @@ export function TemasView() {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pontos Focais (separados por vírgula)</label>
-              <Input 
-                placeholder="Ex: João Silva, Maria Souza" 
+              <Input
+                placeholder="Ex: João Silva, Maria Souza"
                 value={newTopic.pontosFocais}
                 onChange={(e) => setNewTopic({ ...newTopic, pontosFocais: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Nome da pasta no Drive <span className="normal-case font-normal text-muted-foreground/70">(opcional)</span>
+              </label>
+              <Input
+                placeholder="Ex: Contratações 2025 (deixe em branco para usar a descrição)"
+                value={newTopic.nomePastaDrive}
+                onChange={(e) => setNewTopic({ ...newTopic, nomePastaDrive: e.target.value })}
               />
             </div>
           </div>
@@ -489,7 +687,7 @@ export function TemasView() {
             <Button variant="outline" onClick={() => setIsTopicDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreateTopic} disabled={isCreatingTopic}>
               {isCreatingTopic ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-              Criar Tópico
+              Criar Meta
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -499,11 +697,11 @@ export function TemasView() {
       <Dialog open={isMetaDialogOpen} onOpenChange={setIsMetaDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Criar Nova Meta</DialogTitle>
+            <DialogTitle>Criar Nova Objetivo</DialogTitle>
           </DialogHeader>
           <div className="py-2 flex flex-col gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Descrição da Meta</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Descrição do Objetivo</label>
               <Input 
                 placeholder="Ex: Diminuição dos valores empenhados..." 
                 value={newMetaDesc}
@@ -515,7 +713,7 @@ export function TemasView() {
             <Button variant="outline" onClick={() => setIsMetaDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreateMeta} disabled={isCreatingMeta}>
               {isCreatingMeta ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-              Criar Meta
+              Criar Objetivo
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -548,7 +746,7 @@ export function TemasView() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-foreground">{tema.nome}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {tema.topicos.length} tópico{tema.topicos.length !== 1 ? "s" : ""} · {total} meta{total !== 1 ? "s" : ""}
+                  {tema.topicos.length} meta{tema.topicos.length !== 1 ? "s" : ""} · {total} objetivo{total !== 1 ? "s" : ""}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -565,7 +763,7 @@ export function TemasView() {
                       }}
                     >
                       <Plus size={14} />
-                      Novo Tópico
+                      Nova Meta
                     </Button>
                     <div className="w-px h-8 bg-border/40 mx-1" />
                   </>
@@ -599,6 +797,8 @@ export function TemasView() {
                         key={t.id}
                         topico={t}
                         liveStatuses={liveStatuses}
+                        documents={topicoDocumentos.get(t.id) ?? []}
+                        onDocumentsChange={handleDocumentsChange}
                         onAddMeta={(id) => {
                           setSelectedTopicoId(id);
                           setIsMetaDialogOpen(true);
@@ -606,7 +806,7 @@ export function TemasView() {
                       />
                     ))}
                     {tema.topicos.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-3">Nenhum tópico cadastrado.</p>
+                      <p className="text-xs text-muted-foreground text-center py-3">Nenhuma meta cadastrado.</p>
                     )}
                   </div>
                 </motion.div>

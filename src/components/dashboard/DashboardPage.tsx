@@ -6,6 +6,7 @@ import { TemasView } from "./TemasView";
 import { UsuariosView } from "./UsuariosView";
 import { MarcosView } from "./MarcosView";
 import { SetoresView } from "./SetoresView";
+import { TicketWidget } from "./TicketWidget";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Users, Home, LogOut, ChevronRight,
@@ -142,6 +143,9 @@ export function DashboardPage() {
           {view === "usuarios" && isAdmin && <UsuariosView />}
         </motion.div>
       </main>
+      
+      {/* ── Support Widget ────────────────────────────────────────────────── */}
+      <TicketWidget />
     </div>
   );
 }

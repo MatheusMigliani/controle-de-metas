@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, Plus, Pencil, Loader2, X, Search } from "lucide-react";
@@ -108,7 +108,15 @@ export function SetoresView() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchSetores(); }, []);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      fetchSetores();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Create ───────────────────────────────────────────────────────────────────
 
