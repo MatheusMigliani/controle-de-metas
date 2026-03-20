@@ -7,7 +7,7 @@ import Image from "next/image";
 import {
   Sun, Moon, LayoutList, CheckCircle2, Clock3, FileCheck2,
   BarChart3, Calendar, LayoutDashboard, Home, LogOut, ChevronDown,
-  Menu, X, Flag, Milestone, BarChart2, CalendarDays,
+  Menu, X, Flag, Milestone, BarChart2, CalendarDays, Target,
 } from "lucide-react";
 import { planos, etapas, marcos } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,7 @@ const navItems = [
   { id: "hero",       label: "Início",     icon: Home },
   { id: "panorama",   label: "Panorama",   icon: LayoutList },
   { id: "marcos",     label: "Marcos",     icon: Milestone },
-  { id: "planos",     label: "Planos",     icon: Flag },
+  { id: "temas",      label: "Temas",      icon: Target },
   { id: "analise",    label: "Análise",    icon: BarChart2 },
   { id: "calendario", label: "Calendário", icon: CalendarDays },
 ];
@@ -156,7 +156,6 @@ function DropdownCalendario() {
 const dropdownContent: Record<string, React.ComponentType> = {
   panorama: DropdownPanorama,
   marcos: DropdownMarcos,
-  planos: DropdownPlanos,
   analise: DropdownAnalise,
   calendario: DropdownCalendario,
 };

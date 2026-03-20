@@ -31,3 +31,4 @@ dist-ssr
 /build/
 .next
 .env
+.env.local

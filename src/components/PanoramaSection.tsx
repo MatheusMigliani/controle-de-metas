@@ -1,28 +1,24 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
-import { motion, useInView } from "framer-motion";
-import { Layers, CheckCircle2, Clock, FileText, RotateCcw, CircleDot } from "lucide-react";
+import { motion } from "framer-motion";
+import { Layers, CheckCircle2, Clock, FileText } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
-import { etapas, planos } from "@/lib/mock-data";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import { getOverviewStats, getTemas } from "@/lib/metas-api";
 import { NumberTicker } from "@/components/ui/NumberTicker";
-import { CountUp } from "@/components/ui/CountUp";
-import SpotlightCard from "@/components/SpotlightCard";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/3DCard";
 import { TypewriterEffect } from "@/components/ui/typewriter-effect";
 import { ScrollIndicator } from "@/components/ui/ScrollIndicator";
 
 // ---------------------------------------------------------------------------
-// Tipos e constantes compartilhados
+// Tipos
 // ---------------------------------------------------------------------------
 
 interface StatsData {
   total: number;
-  naoIniciadas: number;
   emAndamento: number;
   concluidas: number;
-  docGerado: number;
-  aguardando: number;
+  totalDocumentos: number;
   pct: number;
 }
 
@@ -31,110 +27,112 @@ interface StatusItem {
   key: keyof Omit<StatsData, "pct">;
   icon: LucideIcon;
   iconClass: string;
-  spotlightColor: `rgba(${number}, ${number}, ${number}, ${number})`;
 }
 
 const CARD_BASE =
   "bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl";
 
 const STATUS_ITEMS: StatusItem[] = [
-  {
-    label: "Total de Etapas",
-    key: "total",
-    icon: Layers,
-    iconClass: "text-[#42b9eb]",
-    spotlightColor: "rgba(66, 185, 235, 0.25)",
-  },
-  {
-    label: "Concluídas",
-    key: "concluidas",
-    icon: CheckCircle2,
-    iconClass: "text-emerald-400",
-    spotlightColor: "rgba(52, 211, 153, 0.2)",
-  },
-  {
-    label: "Em Andamento",
-    key: "emAndamento",
-    icon: Clock,
-    iconClass: "text-yellow-400",
-    spotlightColor: "rgba(251, 191, 36, 0.2)",
-  },
-  {
-    label: "Doc. Gerado",
-    key: "docGerado",
-    icon: FileText,
-    iconClass: "text-[#42b9eb]",
-    spotlightColor: "rgba(66, 185, 235, 0.2)",
-  },
-  {
-    label: "Não Iniciadas",
-    key: "naoIniciadas",
-    icon: CircleDot,
-    iconClass: "text-white/40",
-    spotlightColor: "rgba(148, 163, 184, 0.15)",
-  },
-  {
-    label: "Aguardando",
-    key: "aguardando",
-    icon: RotateCcw,
-    iconClass: "text-orange-400",
-    spotlightColor: "rgba(251, 146, 60, 0.2)",
-  },
+  { label: "Concluídas",        key: "concluidas",       icon: CheckCircle2, iconClass: "text-emerald-400" },
+  { label: "Em Andamento",      key: "emAndamento",      icon: Clock,        iconClass: "text-yellow-400"  },
+  { label: "Total Documentos",  key: "totalDocumentos",  icon: FileText,     iconClass: "text-[#42b9eb]"   },
 ];
 
 // ---------------------------------------------------------------------------
-// Variante A — Bento Grid + NumberTicker
+// Skeleton
 // ---------------------------------------------------------------------------
 
-function VariantA({ stats }: { stats: StatsData }) {
-  const numAreas = new Set(planos.map((p) => p.area)).size;
-
+function PanoramaSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Card grande: Total + barra de progresso */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
+      <div className={`${CARD_BASE} p-8 md:row-span-3 min-h-[360px] flex flex-col justify-between`}>
+        <div>
+          <div className="h-8 w-8 bg-white/[0.06] rounded-lg mb-8" />
+          <div className="h-20 w-44 bg-white/10 rounded mb-3" />
+          <div className="h-3 w-52 bg-white/[0.06] rounded" />
+        </div>
+        <div className="border-t border-white/[0.06] pt-8">
+          <div className="flex justify-between mb-3">
+            <div className="h-3 w-24 bg-white/[0.06] rounded" />
+            <div className="h-3 w-12 bg-white/[0.06] rounded" />
+          </div>
+          <div className="h-1.5 bg-white/[0.06] rounded-full" />
+        </div>
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className={`${CARD_BASE} p-6 flex items-center gap-6 min-h-[100px]`}>
+          <div className="w-12 h-12 bg-white/[0.06] rounded-xl shrink-0" />
+          <div className="space-y-2">
+            <div className="h-2.5 w-20 bg-white/[0.06] rounded" />
+            <div className="h-9 w-14 bg-white/10 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bento Grid
+// ---------------------------------------------------------------------------
+
+function BentoGrid({ stats, numTemas }: { stats: StatsData; numTemas: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ── Card grande ─────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className={`${CARD_BASE} p-8 md:col-span-2 md:row-span-2 flex flex-col justify-between`}
+        className={`${CARD_BASE} p-8 md:row-span-3 flex flex-col justify-between relative overflow-hidden`}
       >
-        <div>
-          <div className="flex items-center gap-3 mb-6">
-            <Layers className="w-5 h-5 text-[#42b9eb]" />
+        {/* Glow decorativo */}
+        <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-[#42b9eb]/[0.07] blur-3xl pointer-events-none" />
+
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#42b9eb]/10 border border-[#42b9eb]/20">
+              <Layers className="w-4 h-4 text-[#42b9eb]" />
+            </span>
             <span className="text-white/40 text-xs uppercase tracking-widest">
-              Total de Etapas
+              Total de Metas
             </span>
           </div>
-          <div className="flex items-baseline gap-2 mb-2">
+
+          <div className="flex items-end gap-3 mb-2">
             <NumberTicker
               value={stats.total}
-              className="text-6xl md:text-7xl text-white font-display font-bold"
+              className="text-7xl md:text-8xl text-white font-display font-bold leading-none"
             />
-            <span className="text-white/30 text-lg font-display">etapas</span>
+            <span className="text-white/25 text-xl font-display mb-2">metas</span>
           </div>
-          <p className="text-white/30 text-sm mt-1">
-            distribuídas em{" "}
-            <span className="text-white/60 font-semibold">{planos.length}</span> planos e{" "}
-            <span className="text-white/60 font-semibold">{numAreas}</span> áreas
-          </p>
+
+          {numTemas > 0 && (
+            <p className="text-white/30 text-sm mt-3">
+              distribuídas em{" "}
+              <span className="text-white/60 font-semibold">{numTemas}</span>{" "}
+              {numTemas === 1 ? "tema estratégico" : "temas estratégicos"}
+            </p>
+          )}
         </div>
 
-        <div className="mt-8">
-          <div className="flex items-baseline justify-between mb-3">
-            <span className="text-white/40 text-xs uppercase tracking-widest">
+        {/* Progresso */}
+        <div className="relative mt-auto pt-8 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white/35 text-xs uppercase tracking-widest">
               Progresso global
             </span>
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-baseline gap-0.5">
               <NumberTicker
                 value={stats.pct}
-                className="text-3xl text-[#42b9eb] font-display font-bold"
+                className="text-2xl text-[#42b9eb] font-display font-bold tabular-nums"
                 delay={0.4}
               />
-              <span className="text-[#42b9eb] text-lg font-display">%</span>
+              <span className="text-[#42b9eb]/70 text-sm font-display">%</span>
             </div>
           </div>
-          <div className="h-2 bg-white/[0.08] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-white/[0.07] rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] rounded-full"
               initial={{ width: 0 }}
@@ -143,317 +141,46 @@ function VariantA({ stats }: { stats: StatsData }) {
               transition={{ duration: 1.8, ease: "easeOut", delay: 0.5 }}
             />
           </div>
-          <p className="text-white/30 text-xs mt-2">
-            concluídas ou com documento gerado
-          </p>
+          <p className="text-white/25 text-[11px] mt-2">metas concluídas</p>
         </div>
       </motion.div>
 
-      {/* Cards médios */}
-      {STATUS_ITEMS.slice(1, 3).map((item, i) => {
+      {/* ── 3 cards pequenos ────────────────────────────── */}
+      {STATUS_ITEMS.map((item, i) => {
         const Icon = item.icon;
         return (
           <motion.div
             key={item.key}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1 + i * 0.1 }}
-            className={`${CARD_BASE} p-6 flex flex-col justify-between`}
+            transition={{ duration: 0.5, delay: 0.15 + i * 0.1 }}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <Icon className={`w-4 h-4 ${item.iconClass}`} />
-              <span className="text-white/40 text-xs uppercase tracking-widest">
-                {item.label}
-              </span>
-            </div>
-            <NumberTicker
-              value={stats[item.key]}
-              className="text-4xl text-white font-display font-bold"
-              delay={0.2 + i * 0.05}
-            />
+            <CardContainer className="w-full">
+              <CardBody className={`${CARD_BASE} w-full p-6 flex items-center gap-6`}>
+                {/* Ícone */}
+                <CardItem translateZ={40} className="shrink-0">
+                  <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/[0.05] border border-white/[0.08]">
+                    <Icon className={`w-5 h-5 ${item.iconClass}`} />
+                  </span>
+                </CardItem>
+
+                {/* Texto */}
+                <CardItem translateZ={25} className="min-w-0">
+                  <span className="block text-white/35 text-[11px] uppercase tracking-widest mb-1 truncate">
+                    {item.label}
+                  </span>
+                  <NumberTicker
+                    value={stats[item.key]}
+                    className="text-4xl text-white font-display font-bold leading-none tabular-nums"
+                    delay={0.25 + i * 0.05}
+                  />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
           </motion.div>
         );
       })}
-
-      {/* Cards inferiores: Doc, Não Iniciadas, Aguardando */}
-      {STATUS_ITEMS.slice(3).map((item, i) => {
-        const Icon = item.icon;
-        return (
-          <motion.div
-            key={item.key}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 + i * 0.08 }}
-            className={`${CARD_BASE} p-6 flex flex-col justify-between`}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Icon className={`w-4 h-4 ${item.iconClass}`} />
-              <span className="text-white/40 text-xs uppercase tracking-widest">
-                {item.label}
-              </span>
-            </div>
-            <NumberTicker
-              value={stats[item.key]}
-              className="text-4xl text-white font-display font-bold"
-              delay={0.35 + i * 0.05}
-            />
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Variante B — SpotlightCard + Circular Progress + CountUp
-// ---------------------------------------------------------------------------
-
-function CircularProgress({ pct }: { pct: number }) {
-  const ref = useRef<SVGCircleElement>(null);
-  const isInView = useInView(ref, { once: true });
-
-  const radius = 72;
-  const circumference = 2 * Math.PI * radius;
-  const targetOffset = circumference - (pct / 100) * circumference;
-
-  return (
-    <div className="flex flex-col items-center justify-center py-8">
-      <div className="relative w-48 h-48">
-        <svg
-          viewBox="0 0 180 180"
-          className="w-full h-full -rotate-90"
-          aria-hidden="true"
-        >
-          {/* Trilha de fundo */}
-          <circle
-            cx="90"
-            cy="90"
-            r={radius}
-            fill="none"
-            stroke="rgba(255,255,255,0.06)"
-            strokeWidth="10"
-          />
-          {/* Arco de progresso */}
-          <motion.circle
-            ref={ref}
-            cx="90"
-            cy="90"
-            r={radius}
-            fill="none"
-            stroke="url(#progressGrad)"
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference}
-            animate={isInView ? { strokeDashoffset: targetOffset } : {}}
-            transition={{ duration: 1.8, ease: "easeOut", delay: 0.3 }}
-          />
-          <defs>
-            <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#42b9eb" />
-              <stop offset="100%" stopColor="#7dd3f8" />
-            </linearGradient>
-          </defs>
-        </svg>
-
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <CountUp
-            to={pct}
-            duration={1.6}
-            delay={0.4}
-            decimals={1}
-            suffix="%"
-            className="text-3xl text-white font-display font-bold"
-          />
-          <span className="text-white/40 text-xs uppercase tracking-widest mt-1">
-            progresso
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VariantB({ stats }: { stats: StatsData }) {
-  return (
-    <div className="space-y-6">
-      {/* Circular progress centralizado */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.7 }}
-        className={`${CARD_BASE} mx-auto max-w-sm`}
-      >
-        <CircularProgress pct={stats.pct} />
-        <div className="pb-6 text-center">
-          <p className="text-white/30 text-xs">
-            concluídas ou com documento gerado
-          </p>
-        </div>
-      </motion.div>
-
-      {/* Grid de 6 SpotlightCards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {STATUS_ITEMS.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <motion.div
-              key={item.key}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.08 }}
-            >
-              <SpotlightCard
-                spotlightColor={item.spotlightColor}
-                className={`${CARD_BASE} p-6 h-full`}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Icon className={`w-4 h-4 ${item.iconClass}`} />
-                  <span className="text-white/40 text-xs uppercase tracking-widest">
-                    {item.label}
-                  </span>
-                </div>
-                <CountUp
-                  to={stats[item.key]}
-                  duration={1.4}
-                  delay={0.1 + i * 0.08}
-                  className="text-4xl text-white font-display font-bold"
-                />
-              </SpotlightCard>
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Variante C — Bento assimétrico + SpotlightCard + GradientText + DecryptedText
-// ---------------------------------------------------------------------------
-
-function VariantC({ stats, mounted }: { stats: StatsData; mounted: boolean }) {
-  const numAreas = new Set(planos.map((p) => p.area)).size;
-
-  // Linha superior + meio: 4 cards menores + 1 grande
-  const smallItems = STATUS_ITEMS.slice(1, 5); // concluidas, andamento, docGerado, naoIniciadas
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Coluna esquerda: 4 cards menores empilhados em 2x2 */}
-      <div className="md:col-span-1 grid grid-cols-2 gap-4">
-        {smallItems.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <motion.div
-              key={item.key}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
-            >
-              <SpotlightCard
-                spotlightColor="rgba(66, 185, 235, 0.15)"
-                className={`${CARD_BASE} p-5 h-full`}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <Icon className={`w-3.5 h-3.5 ${item.iconClass}`} />
-                  <span className="text-white/40 text-[10px] uppercase tracking-widest leading-tight">
-                    {item.label}
-                  </span>
-                </div>
-                <CountUp
-                  to={stats[item.key]}
-                  duration={1.4}
-                  delay={0.15 + i * 0.07}
-                  className="text-3xl text-white font-display font-bold"
-                />
-              </SpotlightCard>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Card grande à direita: % com GradientText */}
-      <motion.div
-        initial={{ opacity: 0, x: 30 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.7, delay: 0.1 }}
-        className="md:col-span-2"
-      >
-        <SpotlightCard
-          spotlightColor="rgba(66, 185, 235, 0.15)"
-          className={`${CARD_BASE} p-8 h-full flex flex-col justify-between`}
-        >
-          <div>
-            <span className="text-white/40 text-xs uppercase tracking-widest mb-4 block">
-              Progresso Global
-            </span>
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] bg-clip-text text-transparent font-display font-bold text-7xl md:text-8xl leading-none tabular-nums">
-                <CountUp
-                  to={stats.pct}
-                  duration={1.6}
-                  delay={0.3}
-                  decimals={1}
-                  className="bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] bg-clip-text text-transparent font-display font-bold text-7xl md:text-8xl"
-                />
-              </span>
-              <span className="bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] bg-clip-text text-transparent font-display font-bold text-3xl">
-                %
-              </span>
-            </div>
-            <p className="text-white/30 text-sm">
-              das etapas concluídas ou com documento gerado
-            </p>
-          </div>
-
-          <div className="mt-8">
-            <div className="h-2 bg-white/[0.08] rounded-full overflow-hidden mb-6">
-              <motion.div
-                className="h-full bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] rounded-full"
-                initial={{ width: 0 }}
-                whileInView={{ width: `${mounted ? stats.pct : 0}%` }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.8, ease: "easeOut", delay: 0.5 }}
-              />
-            </div>
-
-            {/* Linha inferior com resumo */}
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/[0.06]">
-              {[
-                { label: "Planos", value: planos.length, icon: Layers },
-                { label: "Áreas", value: numAreas, icon: CircleDot },
-                {
-                  label: "Aguardando",
-                  value: stats.aguardando,
-                  icon: RotateCcw,
-                },
-              ].map((summary, i) => {
-                const SIcon = summary.icon;
-                return (
-                  <div key={i} className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <SIcon className="w-3 h-3 text-white/30" />
-                      <span className="text-white/40 text-[10px] uppercase tracking-widest">
-                        {summary.label}
-                      </span>
-                    </div>
-                    <span className="text-white font-display font-bold text-2xl tabular-nums">
-                      {summary.value}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </SpotlightCard>
-      </motion.div>
     </div>
   );
 }
@@ -463,30 +190,45 @@ function VariantC({ stats, mounted }: { stats: StatsData; mounted: boolean }) {
 // ---------------------------------------------------------------------------
 
 export function PanoramaSection() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const { data: overview, isLoading, isError } = useQuery({
+    queryKey: ["stats-overview"],
+    queryFn: getOverviewStats,
+  });
 
-  const stats = useMemo<StatsData>(() => {
-    const total = etapas.length;
-    const naoIniciadas = etapas.filter((e) => e.status === "Não Iniciada").length;
-    const emAndamento = etapas.filter((e) => e.status === "Em Andamento").length;
-    const concluidas = etapas.filter((e) => e.status === "Concluída").length;
-    const docGerado = etapas.filter((e) => e.status === "Documento Gerado").length;
-    const aguardando = etapas.filter(
-      (e) => e.status === "Aguardando retorno da área"
-    ).length;
-    const pct =
-      total > 0
-        ? Math.round(((concluidas + docGerado) / total) * 100 * 10) / 10
-        : 0;
-    return { total, naoIniciadas, emAndamento, concluidas, docGerado, aguardando, pct };
-  }, []);
+  const { data: temas } = useQuery({
+    queryKey: ["temas"],
+    queryFn: getTemas,
+  });
+
+  const numTemas = temas?.length ?? 0;
+
+  // Conta metas com documentUrl a partir do cache de temas
+  const totalDocumentos = temas
+    ? temas.reduce(
+        (acc, t) =>
+          acc +
+          t.topicos.reduce(
+            (a, tp) => a + tp.metas.filter((m) => m.documentUrl).length,
+            0
+          ),
+        0
+      )
+    : 0;
+
+  const stats: StatsData | null = overview
+    ? {
+        total: overview.totalMetas,
+        emAndamento: overview.emAndamento,
+        concluidas: overview.concluidas,
+        totalDocumentos,
+        pct: Math.round(overview.percentualConcluidas * 10) / 10,
+      }
+    : null;
 
   return (
     <section id="panorama" className="py-32 relative">
       <div className="absolute inset-0 gradient-mesh-bg" />
       <div className="section-container relative z-10">
-        {/* Header da seção */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -506,44 +248,25 @@ export function PanoramaSection() {
             />
           </h2>
           <p className="text-white/40 max-w-lg text-lg">
-            {planos.length} planos de ação monitorados com {etapas.length} etapas
-            em acompanhamento contínuo.
+            {stats
+              ? `${stats.total} metas monitoradas em tempo real.`
+              : "Carregando estatísticas..."}
           </p>
         </motion.div>
 
-        {/* Tabs de comparação */}
-        <Tabs defaultValue="a">
-          <TabsList className="mb-8 bg-white/[0.06] border border-white/10 rounded-xl p-1 h-auto">
-            <TabsTrigger
-              value="a"
-              className="data-[state=active]:bg-[#42b9eb] data-[state=active]:text-[#13335a] text-white/60 rounded-lg font-display font-semibold px-6 py-2 transition-all"
-            >
-              Opção A
-            </TabsTrigger>
-            <TabsTrigger
-              value="b"
-              className="data-[state=active]:bg-[#42b9eb] data-[state=active]:text-[#13335a] text-white/60 rounded-lg font-display font-semibold px-6 py-2 transition-all"
-            >
-              Opção B
-            </TabsTrigger>
-            <TabsTrigger
-              value="c"
-              className="data-[state=active]:bg-[#42b9eb] data-[state=active]:text-[#13335a] text-white/60 rounded-lg font-display font-semibold px-6 py-2 transition-all"
-            >
-              Opção C
-            </TabsTrigger>
-          </TabsList>
+        {isLoading && <PanoramaSkeleton />}
 
-          <TabsContent value="a">
-            <VariantA stats={stats} />
-          </TabsContent>
-          <TabsContent value="b">
-            <VariantB stats={stats} />
-          </TabsContent>
-          <TabsContent value="c">
-            <VariantC stats={stats} mounted={mounted} />
-          </TabsContent>
-        </Tabs>
+        {isError && (
+          <div className="flex items-center justify-center py-20">
+            <div className={`${CARD_BASE} px-8 py-10 text-center max-w-sm`}>
+              <p className="text-white/40 text-sm">
+                Não foi possível carregar as estatísticas.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {stats && <BentoGrid stats={stats} numTemas={numTemas} />}
       </div>
       <ScrollIndicator href="#marcos" />
     </section>

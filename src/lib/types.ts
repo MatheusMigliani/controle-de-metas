@@ -44,3 +44,83 @@ export const STATUS_LIST: EtapaStatus[] = [
   "Documento Gerado",
   "Aguardando retorno da área",
 ];
+
+// ── API de Stats ─────────────────────────────────────────────────────────────
+
+export interface ApiOverviewStats {
+  totalMetas: number;
+  percentualConcluidas: number;
+  naoIniciadas: number;
+  emAndamento: number;
+  pendentesAprovacao: number;
+  concluidas: number;
+  aguardandoRetorno: number;
+}
+
+// ── API de Setores ────────────────────────────────────────────────────────────
+
+export interface ApiSetor {
+  id: string;
+  nome: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── API de Metas ─────────────────────────────────────────────────────────────
+
+export type MetaStatus = "NaoIniciada" | "EmAndamento" | "Concluida" | "DocumentoGerado" | "AguardandoRetorno";
+
+export interface ApiMeta {
+  id: string;
+  topicoId: string;
+  descricao: string;
+  status: MetaStatus;
+  documentUrl: string | null;
+  approverComment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiTopico {
+  id: string;
+  temaId: string;
+  descricao: string;
+  setorResponsavel: string;
+  pontosFocais: string[];
+  createdAt: string;
+  updatedAt: string;
+  metas: ApiMeta[];
+}
+
+export interface ApiTema {
+  id: string;
+  nome: string;
+  createdAt: string;
+  updatedAt: string;
+  topicos: ApiTopico[];
+}
+
+// ── API de Marcos ─────────────────────────────────────────────────────────────
+
+export interface ApiMarco {
+  id: string;
+  etapa: string;
+  responsaveis: string[];
+  prazo: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error: string | null;
+}
+
+export const META_STATUS_CONFIG: Record<MetaStatus, { label: string; color: string; bg: string; dot: string }> = {
+  NaoIniciada:       { label: "Não Iniciada",      color: "text-white/40",    bg: "bg-white/[0.06] border-white/10",         dot: "bg-white/30" },
+  EmAndamento:       { label: "Em Andamento",       color: "text-yellow-300",  bg: "bg-yellow-300/10 border-yellow-300/20",   dot: "bg-yellow-300" },
+  Concluida:         { label: "Concluída",          color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
+  DocumentoGerado:   { label: "Documento Gerado",   color: "text-[#42b9eb]",   bg: "bg-[#42b9eb]/10 border-[#42b9eb]/20",    dot: "bg-[#42b9eb]" },
+  AguardandoRetorno: { label: "Aguardando Retorno", color: "text-orange-400",  bg: "bg-orange-400/10 border-orange-400/20",  dot: "bg-orange-400" },
+};

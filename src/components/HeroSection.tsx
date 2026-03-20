@@ -2,7 +2,9 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Clock3, FileCheck2, LayoutList, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { etapas, planos } from "@/lib/mock-data";
+import { getSetores } from "@/lib/metas-api";
 import { SplitText } from "@/components/ui/SplitText";
 import { ScrollIndicator } from "@/components/ui/ScrollIndicator";
 import Image from "next/image";
@@ -18,7 +20,7 @@ const stats = (() => {
   return { total, concluidas, emAndamento, docs, planos: planos.length, pct };
 })();
 
-const AREAS = ["DAF", "RH", "NGMC", "DOP", "TI", "NPC", "SUBG", "DAF", "RH", "NGMC", "DOP", "TI", "NPC", "SUBG"];
+const AREAS_FALLBACK = ["DAF", "RH", "NGMC", "DOP", "TI", "NPC", "SUBG"];
 
 
 const CROSSES = [
@@ -37,6 +39,14 @@ const CROSSES = [
 ];
 
 export function HeroSection() {
+  const { data: setores } = useQuery({
+    queryKey: ["setores"],
+    queryFn: getSetores,
+  });
+
+  // Duplica para loop infinito contínuo (anima de 0% → -50%)
+  const labels = setores?.map((s) => s.nome) ?? AREAS_FALLBACK;
+  const carousel = [...labels, ...labels];
 
   return (
     <section
@@ -170,9 +180,9 @@ export function HeroSection() {
                     animate={{ x: ["0%", "-50%"] }}
                     transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
                   >
-                    {AREAS.map((area, i) => (
+                    {carousel.map((label, i) => (
                       <span key={i} className="shrink-0 px-4 py-2 rounded-full text-xs font-semibold font-display tracking-wide bg-white/10 border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] text-white/70">
-                        {area}
+                        {label}
                       </span>
                     ))}
                   </motion.div>
