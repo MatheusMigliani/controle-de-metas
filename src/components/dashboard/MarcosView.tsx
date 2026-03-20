@@ -15,7 +15,7 @@ type Responsavel = 0 | 1 | 2;
 const RESPONSAVEL_LABEL: Record<Responsavel, string> = {
   0: "TCMRio",
   1: "CGMRio",
-  2: "SMSRioSaúde",
+  2: "SMS/RioSaúde",
 };
 
 const RESPONSAVEL_COLOR: Record<Responsavel, string> = {
@@ -135,11 +135,10 @@ function MarcoModal({ title, form, onChange, onConfirm, onClose, loading, confir
                     key={r}
                     type="button"
                     onClick={() => toggleResponsavel(r)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      selected
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${selected
                         ? RESPONSAVEL_COLOR[r]
                         : "bg-slate-100 text-muted-foreground border-slate-200 dark:bg-white/5 dark:border-white/10 hover:border-primary/40"
-                    }`}
+                      }`}
                   >
                     {RESPONSAVEL_LABEL[r]}
                   </button>
@@ -174,13 +173,13 @@ function MarcoModal({ title, form, onChange, onConfirm, onClose, loading, confir
 // ── Main View ─────────────────────────────────────────────────────────────────
 
 export function MarcosView() {
-  const [marcos,     setMarcos]     = useState<Marco[]>([]);
-  const [loading,    setLoading]    = useState(true);
+  const [marcos, setMarcos] = useState<Marco[]>([]);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Modal state
-  const [createOpen,  setCreateOpen]  = useState(false);
-  const [editTarget,  setEditTarget]  = useState<Marco | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Marco | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Marco | null>(null);
 
   const [form, setForm] = useState<MarcoFormData>(EMPTY_FORM);
@@ -195,7 +194,7 @@ export function MarcosView() {
         .catch(() => toast.error("Erro ao carregar marcos."))
         .finally(() => setLoading(false));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -219,9 +218,9 @@ export function MarcosView() {
     setSubmitting(true);
     try {
       const res = await api.post<{ success: boolean; data: Marco }>("/marcos", {
-        etapa:        form.etapa,
+        etapa: form.etapa,
         responsaveis: form.responsaveis,
-        prazo:        toIso(form.prazo),
+        prazo: toIso(form.prazo),
       });
       setMarcos((prev) => [...prev, res.data.data]);
       setCreateOpen(false);
@@ -236,9 +235,9 @@ export function MarcosView() {
   // ── Edit ─────────────────────────────────────────────────────────────────────
   function openEdit(marco: Marco) {
     setForm({
-      etapa:        marco.etapa,
+      etapa: marco.etapa,
       responsaveis: marco.responsaveis,
-      prazo:        toDatetimeLocal(marco.prazo),
+      prazo: toDatetimeLocal(marco.prazo),
     });
     setEditTarget(marco);
   }
@@ -248,9 +247,9 @@ export function MarcosView() {
     setSubmitting(true);
     try {
       const res = await api.patch<{ success: boolean; data: Marco }>(`/marcos/${editTarget.id}`, {
-        etapa:        form.etapa,
+        etapa: form.etapa,
         responsaveis: form.responsaveis,
-        prazo:        toIso(form.prazo),
+        prazo: toIso(form.prazo),
       });
       setMarcos((prev) => prev.map((m) => m.id === editTarget.id ? res.data.data : m));
       setEditTarget(null);
@@ -336,11 +335,10 @@ export function MarcosView() {
                     className="bg-white dark:bg-slate-900 border border-border/50 rounded-2xl p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-all group"
                   >
                     {/* Timeline dot */}
-                    <div className={`mt-1 w-3 h-3 rounded-full border-2 shrink-0 ${
-                      overdue
+                    <div className={`mt-1 w-3 h-3 rounded-full border-2 shrink-0 ${overdue
                         ? "bg-rose-400 border-rose-300"
                         : "bg-primary border-primary/40"
-                    }`} />
+                      }`} />
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
@@ -348,11 +346,10 @@ export function MarcosView() {
 
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {/* Prazo */}
-                        <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                          overdue
+                        <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${overdue
                             ? "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20"
                             : "bg-slate-50 text-muted-foreground border-border/50 dark:bg-white/5"
-                        }`}>
+                          }`}>
                           <CalendarDays size={10} />
                           {formatDate(marco.prazo)}
                           {overdue && " · Vencido"}

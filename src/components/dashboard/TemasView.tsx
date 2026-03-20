@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio, Paperclip, FileText, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio, Paperclip, FileText, Trash2, Upload, ThumbsUp, ThumbsDown, RefreshCw, ExternalLink, History } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetorAutocomplete } from "@/components/ui/SetorAutocomplete";
 import { toast } from "sonner";
-import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload } from "@/hooks/useMetaHub";
+import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload, MetaStatusLoggedPayload, TopicoDocumentLoggedPayload, UserRoleLoggedPayload } from "@/hooks/useMetaHub";
+import { Textarea } from "@/components/ui/textarea";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,12 +25,37 @@ interface Meta {
   updatedAt?:  string;
 }
 
+type DocumentoStatus = "PendenteAprovacao" | "Aprovado" | "Devolvido";
+type DocumentoAcao   = "Upload" | "Aprovado" | "Devolvido" | "Reenvio";
+
+interface MetaStatusLog {
+  id:            string;
+  statusAnterior: string;
+  statusNovo:    string;
+  criadoEm:      string;
+  userNome:      string;
+  userEmail:     string;
+}
+
+interface DocumentoLog {
+  id:        string;
+  acao:      string;   // matches useMetaHub export
+  detalhes?: string;
+  criadoEm:  string;
+  userNome:  string;
+  userEmail: string;
+}
+
 interface TopicoDocumento {
-  id:         string;
-  topicoId:   string;
-  nome:       string;
-  driveUrl:   string;
-  uploadedAt: string;
+  id:                  string;
+  topicoId:            string;
+  nome:                string;
+  driveUrl:            string;
+  driveOficialUrl?:    string;
+  uploadedAt:          string;
+  uploadedByUserId:    string;
+  status:              DocumentoStatus;
+  comentarioAprovacao?: string;
 }
 
 interface Topico {
@@ -70,37 +96,41 @@ const META_STATUS_ENUM: Record<MetaStatus, number> = {
 
 // ── MetaCard ──────────────────────────────────────────────────────────────────
 
-function MetaCard({ meta, liveStatus }: { meta: Meta; liveStatus?: MetaStatus }) {
+function MetaCard({ meta, liveStatus, liveLog }: { meta: Meta; liveStatus?: MetaStatus; liveLog?: MetaStatusLog }) {
   const { user } = useAuth();
-  const [status, setStatus] = useState<MetaStatus>(meta.status);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus]           = useState<MetaStatus>(meta.status);
+  const [loading, setLoading]         = useState(false);
+  const [logsOpen, setLogsOpen]       = useState(false);
+  const [logs, setLogs]               = useState<MetaStatusLog[] | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const canViewHistory = user?.role === "Admin" || user?.role === "Aprovador";
+
+  // Append live log when SignalR pushes a new entry
+  useEffect(() => {
+    if (!liveLog) return;
+    setLogs((prev) => prev ? [liveLog, ...prev.filter(l => l.id !== liveLog.id)] : [liveLog]);
+  }, [liveLog]);
   const cfg = STATUS_CONFIG[status];
 
-  // Sync when an external SignalR update arrives
   useEffect(() => {
     if (liveStatus && liveStatus !== status) setStatus(liveStatus);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveStatus]);
 
   const canChangeStatus =
-    user?.role === "Admin" ||
-    user?.role === "Analista" ||
-    user?.role === "Aprovador";
+    user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
 
   const availableStatuses: MetaStatus[] =
     user?.role === "Admin"
       ? [...ANALISTA_STATUSES, ...APROVADOR_STATUSES]
-      : user?.role === "Aprovador"
-      ? APROVADOR_STATUSES
-      : user?.role === "Analista"
-      ? ANALISTA_STATUSES
-      : [];
+      : user?.role === "Aprovador" ? APROVADOR_STATUSES
+      : user?.role === "Analista"  ? ANALISTA_STATUSES : [];
 
   async function handleStatusChange(newStatus: MetaStatus) {
     if (newStatus === status) return;
     setLoading(true);
     try {
-        await api.patch(`/metas/${meta.id}/status`, { status: META_STATUS_ENUM[newStatus] });
+      await api.patch(`/metas/${meta.id}/status`, { status: META_STATUS_ENUM[newStatus] });
       setStatus(newStatus);
       toast.success("Status atualizado com sucesso.");
     } catch {
@@ -110,28 +140,84 @@ function MetaCard({ meta, liveStatus }: { meta: Meta; liveStatus?: MetaStatus })
     }
   }
 
+  async function handleToggleLogs() {
+    setLogsOpen((v) => !v);
+    if (logs !== null) return;
+    setLogsLoading(true);
+    try {
+      const r = await api.get<{ data: MetaStatusLog[] }>(`/metas/${meta.id}/logs`);
+      setLogs(r.data.data);
+    } catch { setLogs([]); }
+    finally { setLogsLoading(false); }
+  }
+
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-border/40 hover:border-primary/20 transition-colors">
-      <Target size={14} className="text-primary mt-0.5 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-foreground leading-snug">{meta.descricao}</p>
-        <div className="flex items-center gap-2 mt-2 flex-wrap relative">
-          {/* Status selector */}
-          {canChangeStatus && availableStatuses.length > 0 ? (
-            <StatusSelector 
-              current={status} 
-              available={availableStatuses} 
-              onSelect={handleStatusChange} 
-              loading={loading} 
-            />
-          ) : (
-            <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.color}`}>
-              {cfg.icon}
-              {cfg.label}
-            </span>
-          )}
+    <div className="rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-border/40 hover:border-primary/20 transition-colors">
+      <div className="flex items-start gap-3 p-3">
+        <Target size={14} className="text-primary mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground leading-snug">{meta.descricao}</p>
+          <div className="flex items-center gap-2 mt-2 flex-wrap relative">
+            {canChangeStatus && availableStatuses.length > 0 ? (
+              <StatusSelector current={status} available={availableStatuses} onSelect={handleStatusChange} loading={loading} />
+            ) : (
+              <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.color}`}>
+                {cfg.icon}{cfg.label}
+              </span>
+            )}
+            {canViewHistory && (
+              <button
+                onClick={handleToggleLogs}
+                className={`ml-auto inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-lg border transition-colors ${
+                  logsOpen ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground border-border/40 hover:bg-slate-100 dark:hover:bg-white/5"
+                }`}
+              >
+                {logsLoading ? <Loader2 size={9} className="animate-spin" /> : <History size={9} />}
+                Histórico
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {logsOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 border-t border-border/30 pt-2 flex flex-col gap-1.5 ml-5">
+              {logsLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground py-1">
+                  <Loader2 size={12} className="animate-spin" /><span className="text-[11px]">Carregando...</span>
+                </div>
+              ) : (logs ?? []).length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Nenhuma movimentação registrada.</p>
+              ) : (
+                (logs ?? []).map((log) => (
+                  <div key={log.id} className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-border mt-1.5 shrink-0" />
+                    <div className="flex-1 min-w-0 text-[11px]">
+                      <span className="text-muted-foreground">{STATUS_CONFIG[log.statusAnterior as MetaStatus]?.label ?? log.statusAnterior}</span>
+                      <span className="text-muted-foreground"> → </span>
+                      <span className="font-semibold text-foreground">{STATUS_CONFIG[log.statusNovo as MetaStatus]?.label ?? log.statusNovo}</span>
+                      <span className="text-muted-foreground"> por </span>
+                      <span className="font-medium text-foreground">{log.userNome}</span>
+                      <span className="text-muted-foreground"> &lt;{log.userEmail}&gt;</span>
+                      <span className="text-[10px] text-muted-foreground ml-1.5">
+                        {new Date(log.criadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -211,21 +297,52 @@ interface TopicoCardProps {
   liveStatuses:      Map<string, MetaStatus>;
   documents:         TopicoDocumento[];
   onDocumentsChange: (topicoId: string, docs: TopicoDocumento[]) => void;
+  liveDocLogs:       Map<string, DocumentoLog>;
+  liveMetaLogs:      Map<string, MetaStatusLog>;
 }
 
-function TopicoCard({ topico, onAddMeta, liveStatuses, documents, onDocumentsChange }: TopicoCardProps) {
+function TopicoCard({ topico, onAddMeta, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs }: TopicoCardProps) {
   const { user } = useAuth();
-  const [expanded, setExpanded]     = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
-  const [docLoading, setDocLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expanded, setExpanded]         = useState(false);
+  const [hasFetched, setHasFetched]     = useState(false);
+  const [docLoading, setDocLoading]     = useState(false);
+  const [isUploading, setIsUploading]   = useState(false);
+  // Return modal state
+  const [returnDocId, setReturnDocId]   = useState<string | null>(null);
+  const [returnComment, setReturnComment] = useState("");
+  const [isReturning, setIsReturning]   = useState(false);
+  
+  // Specific loading states for actions
+  const [approvingId, setApprovingId]     = useState<string | null>(null);
+  const [reuploadingId, setReuploadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId]       = useState<string | null>(null);
+  // Logs per document
+  const [docLogs, setDocLogs]             = useState<Map<string, DocumentoLog[]>>(new Map());
+  const [logsOpenId, setLogsOpenId]       = useState<string | null>(null);
+  const [logsLoadingId, setLogsLoadingId] = useState<string | null>(null);
+
+  // Reupload input ref per doc
+  const fileInputRef    = useRef<HTMLInputElement>(null);
+  const reuploadInputRef = useRef<HTMLInputElement>(null);
+  const reuploadDocIdRef = useRef<string | null>(null);
 
   const done  = topico.metas.filter((m) => m.status === "Concluido").length;
   const total = topico.metas.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const canManageDocs = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
+  const isApprover     = user?.role === "Admin" || user?.role === "Aprovador";
+  const canUpload      = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
+  const canViewHistory = user?.role === "Admin" || user?.role === "Aprovador";
+
+  const canDelete = (doc: TopicoDocumento) => {
+    if (user?.role === "Admin") return true;
+    if (doc.status === "Aprovado") return false;
+    return doc.uploadedByUserId === user?.userId;
+  };
+
+  const canReupload = (doc: TopicoDocumento) =>
+    doc.status === "Devolvido" &&
+    (user?.role === "Admin" || doc.uploadedByUserId === user?.userId);
 
   // Lazy-fetch documents on first expand
   useEffect(() => {
@@ -234,7 +351,7 @@ function TopicoCard({ topico, onAddMeta, liveStatuses, documents, onDocumentsCha
     setDocLoading(true);
     api.get<{ data: TopicoDocumento[] }>(`/topicos/${topico.id}/documents`)
       .then((r) => onDocumentsChange(topico.id, r.data.data))
-      .catch(() => {/* silently ignore */})
+      .catch(() => {})
       .finally(() => setDocLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded]);
@@ -247,12 +364,11 @@ function TopicoCard({ topico, onAddMeta, liveStatuses, documents, onDocumentsCha
     formData.append("file", file);
     try {
       const r = await api.post<{ data: TopicoDocumento }>(
-        `/topicos/${topico.id}/documents`,
-        formData,
+        `/topicos/${topico.id}/documents`, formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
       onDocumentsChange(topico.id, [r.data.data, ...documents]);
-      toast.success("Documento anexado com sucesso!");
+      toast.success("Documento enviado! Aguardando aprovação.");
     } catch {
       toast.error("Erro ao enviar o documento.");
     } finally {
@@ -261,173 +377,407 @@ function TopicoCard({ topico, onAddMeta, liveStatuses, documents, onDocumentsCha
     }
   }
 
-  async function handleDeleteDoc(docId: string) {
+  async function handleReuploadChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const docId = reuploadDocIdRef.current;
+    if (!file || !docId) return;
+    setReuploadingId(docId);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const r = await api.put<{ data: TopicoDocumento }>(
+        `/topicos/${topico.id}/documents/${docId}`, formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      onDocumentsChange(topico.id, documents.map((d) => d.id === docId ? r.data.data : d));
+      toast.success("Documento reenviado! Aguardando nova aprovação.");
+    } catch {
+      toast.error("Erro ao reenviar o documento.");
+    } finally {
+      setReuploadingId(null);
+      if (reuploadInputRef.current) reuploadInputRef.current.value = "";
+    }
+  }
+
+  async function handleApprove(docId: string) {
+    setApprovingId(docId);
+    try {
+      const r = await api.post<{ data: TopicoDocumento }>(
+        `/topicos/${topico.id}/documents/${docId}/approve`, {}
+      );
+      onDocumentsChange(topico.id, documents.map((d) => d.id === docId ? r.data.data : d));
+      toast.success("Documento aprovado e movido para o Drive oficial!");
+    } catch {
+      toast.error("Erro ao aprovar o documento.");
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  async function handleReturn() {
+    if (!returnDocId || !returnComment.trim()) return;
+    setIsReturning(true);
+    try {
+      const r = await api.post<{ data: TopicoDocumento }>(
+        `/topicos/${topico.id}/documents/${returnDocId}/return`,
+        { comentario: returnComment }
+      );
+      onDocumentsChange(topico.id, documents.map((d) => d.id === returnDocId ? r.data.data : d));
+      toast.success("Documento devolvido para correção.");
+      setReturnDocId(null);
+      setReturnComment("");
+    } catch {
+      toast.error("Erro ao devolver o documento.");
+    } finally {
+      setIsReturning(false);
+    }
+  }
+
+  async function handleDelete(docId: string) {
+    setDeletingId(docId);
     try {
       await api.delete(`/topicos/${topico.id}/documents/${docId}`);
       onDocumentsChange(topico.id, documents.filter((d) => d.id !== docId));
       toast.success("Documento removido.");
     } catch {
       toast.error("Erro ao remover o documento.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
+  // Append live log entries pushed via SignalR
+  useEffect(() => {
+    liveDocLogs.forEach((log, docId) => {
+      setDocLogs((prev) => {
+        if (!prev.has(docId)) return prev; // só atualiza se já carregado
+        const existing = prev.get(docId)!;
+        if (existing.find(l => l.id === log.id)) return prev;
+        return new Map(prev).set(docId, [log, ...existing]);
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveDocLogs]);
+
+  async function handleToggleLogs(docId: string) {
+    if (logsOpenId === docId) { setLogsOpenId(null); return; }
+    setLogsOpenId(docId);
+    if (docLogs.has(docId)) return; // já carregados
+    setLogsLoadingId(docId);
+    try {
+      const r = await api.get<{ data: DocumentoLog[] }>(`/topicos/${topico.id}/documents/${docId}/logs`);
+      setDocLogs((prev) => new Map(prev).set(docId, r.data.data));
+    } catch { /* silently ignore */ }
+    finally { setLogsLoadingId(null); }
+  }
+
+  const DOC_STATUS: Record<DocumentoStatus, { label: string; color: string }> = {
+    PendenteAprovacao: { label: "Aguardando aprovação", color: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20" },
+    Aprovado:          { label: "Aprovado",             color: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20" },
+    Devolvido:         { label: "Devolvido",            color: "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20" },
+  };
+
   return (
-    <div className="border border-border/50 rounded-xl">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setExpanded((e) => !e)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded((ex) => !ex); }}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors text-left cursor-pointer"
-      >
-        <motion.div animate={{ rotate: expanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-        </motion.div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{topico.descricao}</p>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-[11px] text-muted-foreground">{topico.setorResponsavel}</span>
-            <span className="text-[11px] text-muted-foreground">·</span>
-            <span className="text-[11px] text-primary font-medium">{done}/{total} concluídas</span>
-            {documents.length > 0 && (
-              <>
-                <span className="text-[11px] text-muted-foreground">·</span>
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Paperclip size={10} />{documents.length} doc{documents.length !== 1 ? "s" : ""}
-                </span>
-              </>
-            )}
+    <>
+      {/* Modal devolução */}
+      <Dialog open={!!returnDocId} onOpenChange={(o) => { if (!o) { setReturnDocId(null); setReturnComment(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Devolver documento para correção</DialogTitle></DialogHeader>
+          <div className="py-2 space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Motivo (obrigatório)</label>
+            <Textarea
+              placeholder="Descreva o que precisa ser corrigido..."
+              value={returnComment}
+              onChange={(e) => setReturnComment(e.target.value)}
+              rows={4}
+              autoFocus
+            />
           </div>
-        </div>
-        {/* Mini progress */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-[11px] font-medium text-muted-foreground w-7 text-right">{pct}%</span>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReturnDocId(null); setReturnComment(""); }}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleReturn} disabled={isReturning || !returnComment.trim()}>
+              {isReturning ? <Loader2 size={14} className="animate-spin mr-2" /> : <ThumbsDown size={14} className="mr-2" />}
+              Devolver
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 flex flex-col gap-2">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex flex-wrap gap-1">
-                  {topico.pontosFocais?.length > 0 && topico.pontosFocais.map((pf) => (
-                    <span key={pf} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {pf}
-                    </span>
-                  ))}
-                </div>
-                {user?.role === "Admin" && (
-                  <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2" onClick={() => onAddMeta(topico.id)}>
-                    <Plus size={12} />
-                    Criar Objetivo
-                  </Button>
-                )}
-              </div>
-              {topico.metas.map((meta) => (
-                <MetaCard key={meta.id} meta={meta} liveStatus={liveStatuses.get(meta.id)} />
-              ))}
-              {topico.metas.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-2">Nenhuma etapa cadastrada.</p>
-              )}
-
-              {/* ── Documentos ─────────────────────────────────────────────── */}
-              <div className="mt-4 bg-slate-50/50 dark:bg-white/[0.01] rounded-xl border border-border/40 p-3">
-                <div className="flex items-center justify-between mb-3 pl-1">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                    <Paperclip size={12} />
-                    Documentos Anexados
+      <div className="border border-border/50 rounded-xl">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setExpanded((e) => !e)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded((ex) => !ex); }}
+          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors text-left cursor-pointer"
+        >
+          <motion.div animate={{ rotate: expanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{topico.descricao}</p>
+            <div className="flex items-center gap-3 mt-1">
+              <span className="text-[11px] text-muted-foreground">{topico.setorResponsavel}</span>
+              <span className="text-[11px] text-muted-foreground">·</span>
+              <span className="text-[11px] text-primary font-medium">{done}/{total} concluídas</span>
+              {documents.length > 0 && (
+                <>
+                  <span className="text-[11px] text-muted-foreground">·</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Paperclip size={10} />{documents.length} doc{documents.length !== 1 ? "s" : ""}
                   </span>
-                  {canManageDocs && (
-                    <>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-[10px] gap-1.5 px-3 bg-white dark:bg-slate-900 border border-border/50 hover:bg-slate-100 dark:hover:bg-white/5 shadow-sm rounded-lg"
-                        disabled={isUploading}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        {isUploading
-                          ? <Loader2 size={12} className="animate-spin text-primary" />
-                          : <Upload size={12} className="text-primary" />
-                        }
-                        <span className="font-semibold">{isUploading ? "Enviando..." : "Anexar arquivo"}</span>
-                      </Button>
-                    </>
-                  )}
-                </div>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-[11px] font-medium text-muted-foreground w-7 text-right">{pct}%</span>
+          </div>
+        </div>
 
-                {docLoading ? (
-                  <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground">
-                    <Loader2 size={14} className="animate-spin text-primary/60" />
-                    <span className="text-xs font-medium">Buscando documentos...</span>
-                  </div>
-                ) : documents.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-6 border border-dashed border-border/60 rounded-xl bg-white/50 dark:bg-slate-950/20">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
-                       <Paperclip size={14} className="text-muted-foreground/60" />
-                    </div>
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      Nenhum documento anexado a esta etapa.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-border/50 hover:border-primary/40 hover:shadow-sm group transition-all"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                           <FileText size={14} className="text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <a
-                            href={doc.driveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-[12px] font-semibold text-foreground hover:text-primary transition-colors truncate mb-0.5"
-                          >
-                            {doc.nome}
-                          </a>
-                          <span className="block text-[9px] text-muted-foreground font-medium uppercase tracking-wider">
-                            Adicionado em {new Date(doc.uploadedAt).toLocaleDateString("pt-BR")}
-                          </span>
-                        </div>
-                        {canManageDocs && (
-                          <button
-                            onClick={() => handleDeleteDoc(doc.id)}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                            title="Remover documento"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-wrap gap-1">
+                    {topico.pontosFocais?.length > 0 && topico.pontosFocais.map((pf) => (
+                      <span key={pf} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{pf}</span>
                     ))}
                   </div>
+                  {user?.role === "Admin" && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2" onClick={() => onAddMeta(topico.id)}>
+                      <Plus size={12} />Criar Objetivo
+                    </Button>
+                  )}
+                </div>
+                {topico.metas.map((meta) => (
+                  <MetaCard key={meta.id} meta={meta} liveStatus={liveStatuses.get(meta.id)} liveLog={liveMetaLogs?.get(meta.id)} />
+                ))}
+                {topico.metas.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">Nenhuma etapa cadastrada.</p>
                 )}
+
+                {/* ── Documentos ──────────────────────────────────────────── */}
+                <div className="mt-4 bg-slate-50/50 dark:bg-white/[0.01] rounded-xl border border-border/40 p-3">
+                  <div className="flex items-center justify-between mb-3 pl-1">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                      <Paperclip size={12} />Documentos Anexados
+                    </span>
+                    {canUpload && (
+                      <>
+                        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+                        <Button
+                          size="sm" variant="ghost"
+                          className="h-7 text-[10px] gap-1.5 px-3 bg-white dark:bg-slate-900 border border-border/50 hover:bg-slate-100 dark:hover:bg-white/5 shadow-sm rounded-lg"
+                          disabled={isUploading}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {isUploading ? <Loader2 size={12} className="animate-spin text-primary" /> : <Upload size={12} className="text-primary" />}
+                          <span className="font-semibold">{isUploading ? "Enviando..." : "Anexar arquivo"}</span>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Hidden reupload input */}
+                  <input ref={reuploadInputRef} type="file" className="hidden" onChange={handleReuploadChange} />
+
+                  {docLoading ? (
+                    <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground">
+                      <Loader2 size={14} className="animate-spin text-primary/60" />
+                      <span className="text-xs font-medium">Buscando documentos...</span>
+                    </div>
+                  ) : documents.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-6 border border-dashed border-border/60 rounded-xl bg-white/50 dark:bg-slate-950/20">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
+                        <Paperclip size={14} className="text-muted-foreground/60" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Nenhum documento anexado a esta etapa.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {documents.map((doc) => {
+                        const st = DOC_STATUS[doc.status];
+                        return (
+                          <div key={doc.id} className="rounded-xl bg-white dark:bg-slate-950 border border-border/50 p-3 flex flex-col gap-2">
+                            {/* Row 1: icon + name + status badge */}
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                <FileText size={14} className="text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <a
+                                  href={doc.status === "Aprovado" ? (doc.driveOficialUrl ?? doc.driveUrl) : doc.driveUrl}
+                                  target="_blank" rel="noopener noreferrer"
+                                  className="block text-[12px] font-semibold text-foreground hover:text-primary transition-colors truncate"
+                                >
+                                  {doc.nome}
+                                </a>
+                                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                                  {new Date(doc.uploadedAt).toLocaleDateString("pt-BR")}
+                                </span>
+                              </div>
+                              <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${st.color}`}>
+                                {st.label}
+                              </span>
+                            </div>
+
+                            {/* Row 2: rejection comment */}
+                            {doc.status === "Devolvido" && doc.comentarioAprovacao && (
+                              <div className="ml-11 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
+                                <p className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">Motivo da devolução:</p>
+                                <p className="text-[11px] text-rose-600 dark:text-rose-300 mt-0.5">{doc.comentarioAprovacao}</p>
+                              </div>
+                            )}
+
+                            {/* Row 3: official link for approved */}
+                            {doc.status === "Aprovado" && doc.driveOficialUrl && (
+                              <div className="ml-11">
+                                <a
+                                  href={doc.driveOficialUrl} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                                >
+                                  <ExternalLink size={10} />Ver no Drive oficial
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Row 4: action buttons + histórico */}
+                            <div className="ml-11 flex items-center gap-2 flex-wrap mt-1">
+                              {/* Approve + Return — Aprovador/Admin on pending docs */}
+                              {isApprover && doc.status === "PendenteAprovacao" && (
+                                <>
+                                  <button
+                                    onClick={() => handleApprove(doc.id)}
+                                    disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {approvingId === doc.id ? <Loader2 size={12} className="animate-spin" /> : <ThumbsUp size={12} />}
+                                    Aprovar
+                                  </button>
+                                  <button
+                                    onClick={() => setReturnDocId(doc.id)}
+                                    disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <ThumbsDown size={12} />Devolver
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Reupload — uploader or Admin on rejected docs */}
+                              {canReupload(doc) && (
+                                <button
+                                  onClick={() => { reuploadDocIdRef.current = doc.id; reuploadInputRef.current?.click(); }}
+                                  disabled={reuploadingId === doc.id || approvingId !== null || isReturning || deletingId !== null}
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {reuploadingId === doc.id ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                  Reenviar
+                                </button>
+                              )}
+
+                              {/* Delete */}
+                              {canDelete(doc) && (
+                                <button
+                                  onClick={() => handleDelete(doc.id)}
+                                  disabled={deletingId === doc.id || reuploadingId !== null || approvingId !== null || isReturning}
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {deletingId === doc.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                  Excluir
+                                </button>
+                              )}
+
+                              {/* Histórico — Admin/Aprovador only */}
+                              {canViewHistory && <button
+                                onClick={() => handleToggleLogs(doc.id)}
+                                className={`ml-auto inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg border transition-colors ${
+                                  logsOpenId === doc.id
+                                    ? "bg-primary/10 text-primary border-primary/20"
+                                    : "bg-transparent text-muted-foreground border-border/40 hover:bg-slate-50 dark:hover:bg-white/5"
+                                }`}
+                              >
+                                {logsLoadingId === doc.id
+                                  ? <Loader2 size={10} className="animate-spin" />
+                                  : <History size={10} />
+                                }
+                                Histórico
+                              </button>}
+                            </div>
+
+                            {/* Seção de histórico expandida */}
+                            <AnimatePresence>
+                              {logsOpenId === doc.id && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="ml-11 mt-2 border-t border-border/30 pt-2 flex flex-col gap-1.5">
+                                    {logsLoadingId === doc.id ? (
+                                      <div className="flex items-center gap-2 text-muted-foreground py-1">
+                                        <Loader2 size={12} className="animate-spin" />
+                                        <span className="text-[11px]">Carregando histórico...</span>
+                                      </div>
+                                    ) : (docLogs.get(doc.id) ?? []).length === 0 ? (
+                                      <p className="text-[11px] text-muted-foreground">Nenhuma movimentação registrada.</p>
+                                    ) : (
+                                      (docLogs.get(doc.id) ?? []).map((log) => {
+                                        const ACAO_CONFIG: Record<DocumentoAcao, { label: string; color: string }> = {
+                                          Upload:   { label: "Upload",   color: "text-primary" },
+                                          Aprovado: { label: "Aprovado", color: "text-emerald-600 dark:text-emerald-400" },
+                                          Devolvido:{ label: "Devolvido",color: "text-rose-600 dark:text-rose-400" },
+                                          Reenvio:  { label: "Reenvio",  color: "text-amber-600 dark:text-amber-400" },
+                                        };
+                                        const cfg = ACAO_CONFIG[log.acao] ?? { label: log.acao, color: "text-foreground" };
+                                        return (
+                                          <div key={log.id} className="flex items-start gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-border mt-1.5 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                              <span className={`text-[11px] font-bold ${cfg.color}`}>{cfg.label}</span>
+                                              <span className="text-[11px] text-muted-foreground"> por </span>
+                                              <span className="text-[11px] font-medium text-foreground">{log.userNome}</span>
+                                              <span className="text-[11px] text-muted-foreground"> &lt;{log.userEmail}&gt;</span>
+                                              <span className="text-[10px] text-muted-foreground ml-2">
+                                                {new Date(log.criadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                                              </span>
+                                              {log.detalhes && (
+                                                <p className="text-[11px] text-muted-foreground mt-0.5 italic">"{log.detalhes}"</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }
 
@@ -478,7 +828,6 @@ export function TemasView() {
     setTopicoDocumentos((prev) => {
       const next = new Map(prev);
       const existing = next.get(payload.topicoId) ?? [];
-      // Avoid duplicates (e.g., when uploader receives their own SignalR event)
       if (!existing.find((d) => d.id === payload.id)) {
         next.set(payload.topicoId, [payload as TopicoDocumento, ...existing]);
       }
@@ -496,11 +845,35 @@ export function TemasView() {
     });
   }, []);
 
+  const handleTopicoDocumentUpdated = useCallback((payload: TopicoDocumentoPayload) => {
+    setTopicoDocumentos((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(payload.topicoId) ?? [];
+      next.set(payload.topicoId, existing.map((d) => d.id === payload.id ? payload as TopicoDocumento : d));
+      return next;
+    });
+  }, []);
+
+  // Live log entries pushed via SignalR
+  const [liveMetaLogs, setLiveMetaLogs]   = useState<Map<string, MetaStatusLog>>(new Map());
+  const [liveDocLogs,  setLiveDocLogs]    = useState<Map<string, DocumentoLog>>(new Map());
+
+  const handleMetaStatusLogged = useCallback((payload: MetaStatusLoggedPayload) => {
+    setLiveMetaLogs((prev) => new Map(prev).set(payload.metaId, payload.log));
+  }, []);
+
+  const handleTopicoDocumentLogged = useCallback((payload: TopicoDocumentLoggedPayload) => {
+    setLiveDocLogs((prev) => new Map(prev).set(payload.docId, payload.log));
+  }, []);
+
   useMetaHub({
-    onMetaStatusChanged:     handleMetaStatusChanged,
-    onMetaCreated:           handleMetaCreated,
-    onTopicoDocumentAdded:   handleTopicoDocumentAdded,
-    onTopicoDocumentRemoved: handleTopicoDocumentRemoved,
+    onMetaStatusChanged:      handleMetaStatusChanged,
+    onMetaCreated:            handleMetaCreated,
+    onTopicoDocumentAdded:    handleTopicoDocumentAdded,
+    onTopicoDocumentRemoved:  handleTopicoDocumentRemoved,
+    onTopicoDocumentUpdated:  handleTopicoDocumentUpdated,
+    onMetaStatusLogged:       handleMetaStatusLogged,
+    onTopicoDocumentLogged:   handleTopicoDocumentLogged,
   });
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -799,6 +1172,8 @@ export function TemasView() {
                         liveStatuses={liveStatuses}
                         documents={topicoDocumentos.get(t.id) ?? []}
                         onDocumentsChange={handleDocumentsChange}
+                        liveDocLogs={liveDocLogs}
+                        liveMetaLogs={liveMetaLogs}
                         onAddMeta={(id) => {
                           setSelectedTopicoId(id);
                           setIsMetaDialogOpen(true);
