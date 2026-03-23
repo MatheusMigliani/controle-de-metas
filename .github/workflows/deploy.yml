@@ -29,8 +29,8 @@ jobs:
           context: .
           push: true
           build-args: |
-            NEXT_PUBLIC_AUTH_API=http://subg:2100/api
-            NEXT_PUBLIC_METAS_API=http://subg:2100/api
+            NEXT_PUBLIC_AUTH_API=http://subg:5240
+            NEXT_PUBLIC_METAS_API=http://subg:5240
             NEXT_PUBLIC_SUPPORT_API=http://subg:2100/api
             NEXT_PUBLIC_SYSTEMS_API=http://devcac:7995/api
             NEXT_PUBLIC_SYSTEM_ID=9eb3c75a-1e83-499c-807d-860d053650e5
