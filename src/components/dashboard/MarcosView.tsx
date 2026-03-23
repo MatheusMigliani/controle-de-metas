@@ -375,8 +375,8 @@ export function MarcosView() {
                         </span>
 
                         {/* Responsáveis */}
-                        {marco.responsaveis.map((r) => (
-                          <span key={r} className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${RESPONSAVEL_COLOR[r]}`}>
+                        {Array.from(new Set(marco.responsaveis)).map((r, idx) => (
+                          <span key={`${r}-${idx}`} className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${RESPONSAVEL_COLOR[r]}`}>
                             <Users2 size={9} />
                             {RESPONSAVEL_LABEL[r]}
                           </span>

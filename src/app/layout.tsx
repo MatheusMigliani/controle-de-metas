@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     "Acompanhamento detalhado do Plano de Ação TCMRio da Secretaria Municipal de Saúde do Rio de Janeiro.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: {
