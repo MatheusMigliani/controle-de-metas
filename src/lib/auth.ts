@@ -66,7 +66,8 @@ export function isAuthenticated(): boolean {
 // ── API login call (plain fetch — before Axios is configured) ─────────────────
 
 export async function loginWithGoogle(idToken: string): Promise<AuthUser> {
-  const base = process.env.NEXT_PUBLIC_AUTH_API;
+  const base = (typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_AUTH_API)
+    || process.env['NEXT_PUBLIC_AUTH_API'];
   const res  = await fetch(`${base}/auth/google`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },

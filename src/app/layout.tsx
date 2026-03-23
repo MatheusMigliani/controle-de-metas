@@ -19,13 +19,13 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__ENV__ = ${JSON.stringify({
-              NEXT_PUBLIC_AUTH_API: process.env.NEXT_PUBLIC_AUTH_API,
-              NEXT_PUBLIC_METAS_API: process.env.NEXT_PUBLIC_METAS_API,
-              NEXT_PUBLIC_SUPPORT_API: process.env.NEXT_PUBLIC_SUPPORT_API,
-              NEXT_PUBLIC_SYSTEMS_API: process.env.NEXT_PUBLIC_SYSTEMS_API,
-              NEXT_PUBLIC_SYSTEM_ID: process.env.NEXT_PUBLIC_SYSTEM_ID,
-              NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-              NEXT_PUBLIC_DISCORD_CATEGORY_ID: process.env.NEXT_PUBLIC_DISCORD_CATEGORY_ID,
+              NEXT_PUBLIC_AUTH_API: process.env['NEXT_PUBLIC_AUTH_API'],
+              NEXT_PUBLIC_METAS_API: process.env['NEXT_PUBLIC_METAS_API'],
+              NEXT_PUBLIC_SUPPORT_API: process.env['NEXT_PUBLIC_SUPPORT_API'],
+              NEXT_PUBLIC_SYSTEMS_API: process.env['NEXT_PUBLIC_SYSTEMS_API'],
+              NEXT_PUBLIC_SYSTEM_ID: process.env['NEXT_PUBLIC_SYSTEM_ID'],
+              NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env['NEXT_PUBLIC_GOOGLE_CLIENT_ID'],
+              NEXT_PUBLIC_DISCORD_CATEGORY_ID: process.env['NEXT_PUBLIC_DISCORD_CATEGORY_ID'],
             })}`,
           }}
         />
