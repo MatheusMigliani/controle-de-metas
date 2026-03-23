@@ -345,7 +345,10 @@ function TemaSheet({
         <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5">
           {tema && tema.topicos.length > 0 ? (
             <Accordion.Root type="single" collapsible className="space-y-2">
-              {tema.topicos.map((topico, i) => (
+              {[...tema.topicos].sort((a, b) => {
+                  const n = (s: string) => { const m = s.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
+                  return n(a.descricao) - n(b.descricao);
+                }).map((topico, i) => (
                 <TopicoAccordionItem
                   key={topico.id}
                   topico={topico}
@@ -530,9 +533,12 @@ function TemasTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => v
 
 // ── PlanosTab ─────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 10;
+
 function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => void }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [page, setPage]         = useState(1);
+  const [mounted, setMounted]   = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
   const planos: PlanoDeAcao[] = temas.map((t, i) => temaToPlano(t, i));
@@ -542,9 +548,16 @@ function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => 
     etapasByPlan[plano.id] = temaToEtapas(temas[i], plano.code);
   });
 
-  const selectedPlan = planos.find((p) => p.id === selected);
-  const planEtapas = selected ? (etapasByPlan[selected] ?? []) : [];
-  const completed = planEtapas.filter(
+  const selectedPlan  = planos.find((p) => p.id === selected);
+  const planEtapas    = (selected ? (etapasByPlan[selected] ?? []) : [])
+    .slice()
+    .sort((a, b) => {
+      const num = (s: string) => { const m = s.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
+      return num(a.tema) - num(b.tema);
+    });
+  const totalPages    = Math.ceil(planEtapas.length / PAGE_SIZE);
+  const pagedEtapas   = planEtapas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const completed     = planEtapas.filter(
     (e) => e.status === "Concluída" || e.status === "Documento Gerado"
   ).length;
   const pct = planEtapas.length > 0 ? Math.round((completed / planEtapas.length) * 100) : 0;
@@ -566,7 +579,7 @@ function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => 
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06 }}
-              onClick={() => { onInteract(); setSelected(isSelected ? null : plan.id); }}
+              onClick={() => { onInteract(); setSelected(isSelected ? null : plan.id); setPage(1); }}
               className={`glass-panel p-6 text-left transition-all duration-300 group ${
                 isSelected
                   ? "border-primary/50 shadow-[0_0_30px_hsl(189_100%_44%/0.1)]"
@@ -633,14 +646,14 @@ function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => 
 
             <div className="glass-panel overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border/50">
                       {["Etapa", "Descritivo", "Tema", "Área", "Prazo", "Status", "Doc.", "Link"].map(
                         (h) => (
                           <th
                             key={h}
-                            className="text-left px-5 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            className="text-left px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider"
                           >
                             {h}
                           </th>
@@ -649,7 +662,7 @@ function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => 
                     </tr>
                   </thead>
                   <tbody>
-                    {planEtapas.map((etapa, i) => (
+                    {pagedEtapas.map((etapa, i) => (
                       <motion.tr
                         key={etapa.id}
                         initial={{ opacity: 0, x: -10 }}
@@ -659,24 +672,24 @@ function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => 
                           i % 2 === 0 ? "bg-card/20" : ""
                         }`}
                       >
-                        <td className="px-5 py-4 font-display font-semibold text-primary">
-                          E{etapa.step_number}
+                        <td className="px-4 py-2.5 font-display font-semibold text-primary">
+                          {(() => { const m = etapa.tema.match(/Etapa\s+(\d+)/i); return m ? `E${parseInt(m[1], 10)}` : `E${etapa.step_number}`; })()}
                         </td>
-                        <td className="px-5 py-4 text-foreground max-w-[280px]">
+                        <td className="px-4 py-2.5 text-foreground max-w-[400px]">
                           {etapa.description}
                         </td>
-                        <td className="px-5 py-4 text-muted-foreground text-xs">{etapa.tema}</td>
-                        <td className="px-5 py-4 text-muted-foreground">{etapa.area}</td>
-                        <td className="px-5 py-4 text-muted-foreground whitespace-nowrap">
+                        <td className="px-4 py-2.5 text-muted-foreground">{etapa.tema}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{etapa.area}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                           {etapa.prazo}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-2.5">
                           <StatusBadge status={etapa.status} />
                         </td>
-                        <td className="px-5 py-4 text-xs text-muted-foreground">
+                        <td className="px-4 py-2.5 text-muted-foreground">
                           {etapa.documento_comprobatorio || "—"}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-2.5">
                           {etapa.drive_link ? (
                             <a
                               href={etapa.drive_link}
@@ -695,6 +708,52 @@ function PlanosTab({ temas, onInteract }: { temas: ApiTema[]; onInteract: () => 
                   </tbody>
                 </table>
               </div>
+
+              {/* Paginação */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-4 border-t border-border/30">
+                  <span className="text-xs text-muted-foreground">
+                    Etapas{" "}
+                    <span className="font-medium text-foreground">
+                      {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, planEtapas.length)}
+                    </span>{" "}
+                    de{" "}
+                    <span className="font-medium text-foreground">{planEtapas.length}</span>
+                  </span>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4 rotate-180" />
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                          p === page
+                            ? "bg-primary/15 text-primary border border-primary/30"
+                            : "border border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

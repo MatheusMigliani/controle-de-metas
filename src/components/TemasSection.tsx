@@ -74,7 +74,7 @@ function TopicoAccordionItem({ topico, index }: { topico: ApiTopico; index: numb
       <Accordion.Trigger className="group w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/[0.04] transition-colors data-[state=open]:bg-white/[0.04]">
         <div className="flex items-center gap-3 min-w-0">
           <span className="shrink-0 text-[10px] font-mono text-white/25 tabular-nums">
-            {String(index + 1).padStart(2, "0")}
+            {(() => { const m = topico.descricao.match(/Etapa\s+(\d+)/i); return m ? String(parseInt(m[1], 10)).padStart(2, "0") : String(index + 1).padStart(2, "0"); })()}
           </span>
           <p className="text-xs text-white/70 truncate leading-snug">
             {topico.descricao}
@@ -220,7 +220,12 @@ function TemaCard({ tema, index }: { tema: ApiTema; index: number }) {
         {/* Accordion de tópicos */}
         {tema.topicos.length > 0 ? (
           <Accordion.Root type="multiple" className="space-y-2 flex-1">
-            {tema.topicos.map((topico, i) => (
+            {[...tema.topicos]
+              .sort((a, b) => {
+                const n = (s: string) => { const m = s.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
+                return n(a.descricao) - n(b.descricao);
+              })
+              .map((topico, i) => (
               <TopicoAccordionItem key={topico.id} topico={topico} index={i} />
             ))}
           </Accordion.Root>

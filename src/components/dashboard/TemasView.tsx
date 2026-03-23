@@ -1270,7 +1270,10 @@ export function TemasView() {
                   className="overflow-hidden"
                 >
                   <div className="px-4 pb-4 flex flex-col gap-2 border-t border-border/40 pt-3">
-                    {[...tema.topicos].sort((a, b) => a.descricao.localeCompare(b.descricao)).map((t) => (
+                    {[...tema.topicos].sort((a, b) => {
+                        const n = (s: string) => { const m = s.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
+                        return n(a.descricao) - n(b.descricao);
+                      }).map((t) => (
                       <TopicoCard
                         key={t.id}
                         topico={t}
