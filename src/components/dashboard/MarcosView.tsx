@@ -10,35 +10,39 @@ import { toast } from "sonner";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Responsavel = 0 | 1 | 2;
+type Responsavel = 0 | 1 | 2 | 3;
 
 const RESPONSAVEL_LABEL: Record<Responsavel, string> = {
   0: "TCMRio",
   1: "CGMRio",
-  2: "SMS/RioSaúde",
+  2: "SMS",
+  3: "RioSaúde"
 };
 
 const RESPONSAVEL_COLOR: Record<Responsavel, string> = {
   0: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-400/10 dark:text-sky-400 dark:border-sky-400/20",
   1: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-400/10 dark:text-violet-400 dark:border-violet-400/20",
   2: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20",
+  3: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20",
 };
 
 interface Marco {
   id: number;
+  titulo: string;
   etapa: string;
   responsaveis: Responsavel[];
   prazo: string; // ISO string
 }
 
 interface MarcoFormData {
+  titulo: string;
   etapa: string;
   responsaveis: Responsavel[];
   prazo: string; // datetime-local value
 }
 
-const EMPTY_FORM: MarcoFormData = { etapa: "", responsaveis: [], prazo: "" };
-const ALL_RESPONSAVEIS: Responsavel[] = [0, 1, 2];
+const EMPTY_FORM: MarcoFormData = { titulo: "", etapa: "", responsaveis: [], prazo: "" };
+const ALL_RESPONSAVEIS: Responsavel[] = [0, 1, 2, 3];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +106,17 @@ function MarcoModal({ title, form, onChange, onConfirm, onClose, loading, confir
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Título */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Título</label>
+            <input
+              value={form.titulo}
+              onChange={(e) => onChange({ ...form, titulo: e.target.value })}
+              placeholder="Ex: Assinatura do Contrato"
+              className="w-full px-3 py-2.5 text-sm font-medium rounded-xl bg-slate-50 dark:bg-slate-800 border border-border/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
           {/* Etapa */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Etapa</label>
@@ -136,8 +151,8 @@ function MarcoModal({ title, form, onChange, onConfirm, onClose, loading, confir
                     type="button"
                     onClick={() => toggleResponsavel(r)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${selected
-                        ? RESPONSAVEL_COLOR[r]
-                        : "bg-slate-100 text-muted-foreground border-slate-200 dark:bg-white/5 dark:border-white/10 hover:border-primary/40"
+                      ? RESPONSAVEL_COLOR[r]
+                      : "bg-slate-100 text-muted-foreground border-slate-200 dark:bg-white/5 dark:border-white/10 hover:border-primary/40"
                       }`}
                   >
                     {RESPONSAVEL_LABEL[r]}
@@ -158,7 +173,7 @@ function MarcoModal({ title, form, onChange, onConfirm, onClose, loading, confir
           </button>
           <button
             onClick={onConfirm}
-            disabled={loading || !form.etapa.trim() || !form.prazo || form.responsaveis.length === 0}
+            disabled={loading || !form.titulo.trim() || !form.etapa.trim() || !form.prazo || form.responsaveis.length === 0}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -218,6 +233,7 @@ export function MarcosView() {
     setSubmitting(true);
     try {
       const res = await api.post<{ success: boolean; data: Marco }>("/marcos", {
+        titulo: form.titulo,
         etapa: form.etapa,
         responsaveis: form.responsaveis,
         prazo: toIso(form.prazo),
@@ -235,6 +251,7 @@ export function MarcosView() {
   // ── Edit ─────────────────────────────────────────────────────────────────────
   function openEdit(marco: Marco) {
     setForm({
+      titulo: marco.titulo,
       etapa: marco.etapa,
       responsaveis: marco.responsaveis,
       prazo: toDatetimeLocal(marco.prazo),
@@ -247,6 +264,7 @@ export function MarcosView() {
     setSubmitting(true);
     try {
       const res = await api.patch<{ success: boolean; data: Marco }>(`/marcos/${editTarget.id}`, {
+        titulo: form.titulo,
         etapa: form.etapa,
         responsaveis: form.responsaveis,
         prazo: toIso(form.prazo),
@@ -336,19 +354,20 @@ export function MarcosView() {
                   >
                     {/* Timeline dot */}
                     <div className={`hidden sm:block mt-1 w-3 h-3 rounded-full border-2 shrink-0 ${overdue
-                        ? "bg-rose-400 border-rose-300"
-                        : "bg-primary border-primary/40"
+                      ? "bg-rose-400 border-rose-300"
+                      : "bg-primary border-primary/40"
                       }`} />
 
                     {/* Content */}
                     <div className="flex-1 min-w-0 w-full pr-14 sm:pr-0">
-                      <p className="text-sm font-semibold text-foreground leading-snug">{marco.etapa}</p>
+                      <p className="text-base font-bold text-foreground leading-snug">{marco.titulo}</p>
+                      <p className="text-sm font-medium text-muted-foreground mt-0.5">{marco.etapa}</p>
 
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {/* Prazo */}
                         <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${overdue
-                            ? "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20"
-                            : "bg-slate-50 text-muted-foreground border-border/50 dark:bg-white/5"
+                          ? "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20"
+                          : "bg-slate-50 text-muted-foreground border-border/50 dark:bg-white/5"
                           }`}>
                           <CalendarDays size={10} />
                           {formatDate(marco.prazo)}
