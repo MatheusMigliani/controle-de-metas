@@ -28,6 +28,14 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            NEXT_PUBLIC_AUTH_API=http://subg:5240
+            NEXT_PUBLIC_METAS_API=http://subg:5240
+            NEXT_PUBLIC_SUPPORT_API=http://subg:2100/api
+            NEXT_PUBLIC_SYSTEMS_API=http://devcac:7995/api
+            NEXT_PUBLIC_SYSTEM_ID=9eb3c75a-1e83-499c-807d-860d053650e5
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=163817569782-4hcgtpliiik20cm2k651ntfjtv2oq809.apps.googleusercontent.com
+            NEXT_PUBLIC_DISCORD_CATEGORY_ID=1483912575736479896
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/controle-de-metas:latest
             ${{ secrets.DOCKER_USERNAME }}/controle-de-metas:${{ github.sha }}
