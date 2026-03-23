@@ -1,13 +1,17 @@
 import type { ApiTema, ApiSetor, ApiOverviewStats, ApiMarco, ApiResponse } from "./types";
 
+// Para chamadas server-side (Server Components), usamos a variável sem NEXT_PUBLIC_
+// pois o Portainer injeta corretamente no Node em runtime.
+// Para chamadas client-side (improvável neste arquivo), cai no window.__ENV__.
 const getMetasBase = () => {
-  if (typeof window !== "undefined") {
-    return window.__ENV__?.NEXT_PUBLIC_METAS_API || process.env.NEXT_PUBLIC_METAS_API;
+  // Server-side: process.env.NEXT_PUBLIC_METAS_API é lido diretamente do Portainer em runtime
+  if (typeof window === "undefined") {
+    return process.env.NEXT_PUBLIC_METAS_API;
   }
-  return process.env.NEXT_PUBLIC_METAS_API;
+  // Client-side: usa o window.__ENV__ injetado pelo layout.tsx
+  return window.__ENV__?.NEXT_PUBLIC_METAS_API || process.env.NEXT_PUBLIC_METAS_API;
 };
 
-// Exportar funções usando a URL dinâmica
 
 export async function getTemas(): Promise<ApiTema[]> {
   const res = await fetch(`${getMetasBase()}/temas`, { next: { revalidate: 60 } });
