@@ -439,17 +439,17 @@ function TemaCard({
         {/* Progress */}
         <div className="mb-4">
           <div className="flex items-center justify-between text-[10px] mb-1.5">
-            <span className="text-white/30">Progresso</span>
-            <span className={`font-semibold tabular-nums ${selected ? "text-[#42b9eb]" : "text-white/40"}`}>
+            <span className="text-white/55">Progresso</span>
+            <span className={`font-semibold tabular-nums ${selected ? "text-[#42b9eb]" : "text-white/70"}`}>
               {pct}%
             </span>
           </div>
-          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+          <div className="h-2 bg-white/[0.12] rounded-full overflow-hidden">
             <motion.div
               className={`h-full rounded-full transition-colors duration-300 ${
                 selected
-                  ? "bg-gradient-to-r from-[#42b9eb]/70 to-[#42b9eb]"
-                  : "bg-white/20"
+                  ? "bg-gradient-to-r from-[#42b9eb]/80 to-[#42b9eb]"
+                  : "bg-white/40"
               }`}
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
@@ -459,13 +459,13 @@ function TemaCard({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/[0.06]">
+        <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/[0.10]">
           <button
             onClick={(e) => { e.stopPropagation(); onOpenSheet(); }}
             className={`flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-lg border transition-all ${
               selected
-                ? "border-[#42b9eb]/20 text-[#42b9eb]/70 hover:text-[#42b9eb] hover:border-[#42b9eb]/40"
-                : "border-white/[0.08] text-white/35 hover:text-white/70 hover:border-white/20"
+                ? "border-[#42b9eb]/35 text-[#42b9eb] hover:border-[#42b9eb]/60 hover:bg-[#42b9eb]/[0.08]"
+                : "border-white/20 text-white/60 hover:text-white hover:border-white/40 hover:bg-white/[0.05]"
             }`}
           >
             <Layers className="w-3 h-3" />
@@ -474,7 +474,7 @@ function TemaCard({
 
           <span
             className={`flex items-center gap-1.5 text-[10px] font-medium transition-colors ${
-              selected ? "text-[#42b9eb]" : "text-white/25 group-hover:text-white/45"
+              selected ? "text-[#42b9eb]" : "text-white/50 group-hover:text-white/75"
             }`}
           >
             <LayoutGrid className="w-3 h-3" />
