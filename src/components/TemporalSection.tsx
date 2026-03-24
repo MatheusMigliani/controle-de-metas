@@ -226,14 +226,14 @@ export function TemporalSection() {
         </div>
 
         {/* Tab content */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout" initial={false}>
           {activeTab === "evolucao" && (
             <motion.div
               key="evolucao"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, scale: 0.99 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.99 }}
+              transition={{ duration: 0.22, ease: "easeInOut" }}
               className="glass-panel p-6 md:p-10"
             >
               {loading ? (
@@ -310,10 +310,10 @@ export function TemporalSection() {
           {activeTab === "calendario" && (
             <motion.div
               key="calendario"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, scale: 0.99 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.99 }}
+              transition={{ duration: 0.22, ease: "easeInOut" }}
             >
               {loading ? (
                 <div className="glass-panel h-[400px] flex items-center justify-center text-muted-foreground text-sm">
