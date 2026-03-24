@@ -439,17 +439,17 @@ function TemaCard({
         {/* Progress */}
         <div className="mb-4">
           <div className="flex items-center justify-between text-[10px] mb-1.5">
-            <span className="text-white/55">Progresso</span>
-            <span className={`font-semibold tabular-nums ${selected ? "text-[#42b9eb]" : "text-white/70"}`}>
+            <span className="text-white/70">Progresso</span>
+            <span className={`font-semibold tabular-nums ${selected ? "text-[#42b9eb]" : "text-white/85"}`}>
               {pct}%
             </span>
           </div>
-          <div className="h-2 bg-white/[0.12] rounded-full overflow-hidden">
+          <div className="h-2 bg-white/[0.18] rounded-full overflow-hidden">
             <motion.div
               className={`h-full rounded-full transition-colors duration-300 ${
                 selected
-                  ? "bg-gradient-to-r from-[#42b9eb]/80 to-[#42b9eb]"
-                  : "bg-white/40"
+                  ? "bg-gradient-to-r from-[#42b9eb]/90 to-[#42b9eb]"
+                  : "bg-white/55"
               }`}
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
@@ -465,7 +465,7 @@ function TemaCard({
             className={`flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-lg border transition-all ${
               selected
                 ? "border-[#42b9eb]/35 text-[#42b9eb] hover:border-[#42b9eb]/60 hover:bg-[#42b9eb]/[0.08]"
-                : "border-white/20 text-white/60 hover:text-white hover:border-white/40 hover:bg-white/[0.05]"
+                : "border-white/30 text-white/75 hover:text-white hover:border-white/55 hover:bg-white/[0.06]"
             }`}
           >
             <Layers className="w-3 h-3" />
@@ -474,7 +474,7 @@ function TemaCard({
 
           <span
             className={`flex items-center gap-1.5 text-[10px] font-medium transition-colors ${
-              selected ? "text-[#42b9eb]" : "text-white/50 group-hover:text-white/75"
+              selected ? "text-[#42b9eb]" : "text-white/65 group-hover:text-white/90"
             }`}
           >
             <LayoutGrid className="w-3 h-3" />
