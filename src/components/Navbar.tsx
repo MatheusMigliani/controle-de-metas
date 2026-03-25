@@ -22,7 +22,6 @@ const navItems = [
   { id: "marcos",     label: "Marcos",     icon: Milestone },
   { id: "temas",      label: "Temas",      icon: Target },
   { id: "analise",    label: "Análise",    icon: BarChart2 },
-  { id: "calendario", label: "Calendário", icon: CalendarDays },
 ];
 
 const ROLE_BADGE: Record<string, { label: string; color: string }> = {
@@ -157,7 +156,6 @@ const dropdownContent: Record<string, React.ComponentType> = {
   panorama: DropdownPanorama,
   marcos: DropdownMarcos,
   analise: DropdownAnalise,
-  calendario: DropdownCalendario,
 };
 
 // ── User Card Dropdown ────────────────────────────────────────────────────────
