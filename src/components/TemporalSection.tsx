@@ -273,6 +273,10 @@ export function TemporalSection() {
                       }}
                     />
                     <Legend
+                      payload={[
+                        { value: "Em Andamento", type: "rect", color: "hsl(43 96% 56%)" },
+                        { value: "Concluídas",   type: "rect", color: "hsl(189 100% 44%)" },
+                      ]}
                       wrapperStyle={{
                         fontFamily: "Inter",
                         fontSize: 12,
