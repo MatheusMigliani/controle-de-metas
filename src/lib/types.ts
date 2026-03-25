@@ -39,17 +39,16 @@ export const STATUS_COLORS: Record<EtapaStatus, string> = {
 };
 
 export const STATUS_LIST: EtapaStatus[] = [
-  "Não Iniciada",
   "Em Andamento",
   "Concluída",
   "Documento Gerado",
-  "Aguardando retorno da área",
 ];
 
 // ── API de Stats ─────────────────────────────────────────────────────────────
 
 export interface ApiOverviewStats {
   totalMetas: number;
+  totalTopicos: number;
   percentualConcluidas: number;
   naoIniciadas: number;
   emAndamento: number;
@@ -160,6 +159,7 @@ export interface ApiDashboardVisaoCalendario {
 export interface ApiDashboardStats {
   metricas: {
     totalMetas: number;
+    totalTopicos: number;
     percentualConcluidas: number;
     naoIniciadas: number;
     emAndamento: number;

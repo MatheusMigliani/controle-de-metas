@@ -45,7 +45,6 @@ import {
   ChevronsUpDown,
   Search,
 } from "lucide-react";
-import { ScrollIndicator } from "@/components/ui/ScrollIndicator";
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -329,8 +328,8 @@ function TemaSheet({
           {/* Chips de contagem */}
           <div className="flex flex-wrap gap-2 mt-3">
             {[
-              { label: `${tema?.topicos.length ?? 0} tópicos` },
-              { label: `${total} metas` },
+              { label: `${tema?.topicos.length ?? 0} metas` },
+              { label: `${total} objetivos` },
             ].map(({ label }) => (
               <span
                 key={label}
@@ -599,8 +598,8 @@ export function PlanosSection() {
             <div className="flex flex-wrap gap-2 mb-8">
               {[
                 `${temas.length} ${temas.length === 1 ? "tema" : "temas"}`,
-                `${totalTopicos} ${totalTopicos === 1 ? "tópico" : "tópicos"}`,
-                `${totalMetas} ${totalMetas === 1 ? "meta" : "metas"}`,
+                `${totalTopicos} ${totalTopicos === 1 ? "meta" : "metas"}`,
+                `${totalMetas} ${totalMetas === 1 ? "objetivo" : "objetivos"}`,
               ].map((label, i) => (
                 <motion.span
                   key={label}
@@ -914,7 +913,6 @@ export function PlanosSection() {
         )}
       </div>
 
-      <ScrollIndicator href="#analise" />
     </section>
   );
 }

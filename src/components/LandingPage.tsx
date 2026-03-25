@@ -341,7 +341,7 @@ const Landing = () => {
         <PanoramaSection />
         <MarcosSection />
         <PlanosSection />
-        <TemporalSection />
+        {/* <TemporalSection /> */}
         <FooterSection />
       </div>
     </div>

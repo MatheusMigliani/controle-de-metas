@@ -3,22 +3,15 @@
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Clock3, FileCheck2, LayoutList, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { etapas, planos } from "@/lib/mock-data";
-import { getSetores } from "@/lib/metas-api";
+import { useEffect, useState } from "react";
+import { planos } from "@/lib/mock-data";
+import { getSetores, getDashboardStats } from "@/lib/metas-api";
 import { SplitText } from "@/components/ui/SplitText";
+import { FlipWords } from "@/components/ui/FlipWords";
 import { ScrollIndicator } from "@/components/ui/ScrollIndicator";
 import Image from "next/image";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/ThreeDCard";
 import SpotlightCard from "@/components/SpotlightCard";
-
-const stats = (() => {
-  const total = etapas.length;
-  const concluidas = etapas.filter((e) => e.status === "Concluída").length;
-  const emAndamento = etapas.filter((e) => e.status === "Em Andamento").length;
-  const docs = etapas.filter((e) => e.status === "Documento Gerado").length;
-  const pct = Math.round((concluidas / total) * 100);
-  return { total, concluidas, emAndamento, docs, planos: planos.length, pct };
-})();
 
 const AREAS_FALLBACK = ["DAF", "RH", "NGMC", "DOP", "TI", "NPC", "SUBG"];
 
@@ -44,8 +37,30 @@ export function HeroSection() {
     queryFn: getSetores,
   });
 
+  const { data: dashboard } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: getDashboardStats,
+  });
+
+  const m = dashboard?.metricas;
+  const stats = {
+    total:       m?.totalTopicos        ?? 0,
+    concluidas:  m?.concluidas         ?? 0,
+    emAndamento: m?.emAndamento        ?? 0,
+    docs:        m?.documentosUploaded ?? 0,
+    planos:      planos.length,
+    pct:         m?.percentualConcluidas ?? 0,
+  };
+
   // Duplica para loop infinito contínuo (anima de 0% → -50%)
   const labels = setores?.map((s) => s.nome) ?? AREAS_FALLBACK;
+
+  // Ativa o FlipWords após a animação de entrada da badge terminar (~1.3s)
+  const [flipActive, setFlipActive] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFlipActive(true), 1300);
+    return () => clearTimeout(t);
+  }, []);
   const carousel = [...labels, ...labels];
 
   return (
@@ -55,7 +70,6 @@ export function HeroSection() {
     >
       {/* ── Aurora blobs ────────────────────────────────────────────── */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Blob 1 — cyan grande, canto superior esquerdo */}
         <div
           className="absolute -top-[20%] -left-[10%] w-[65%] h-[65%] rounded-full opacity-[0.18]"
           style={{
@@ -64,7 +78,6 @@ export function HeroSection() {
             animation: "aurora-1 18s ease-in-out infinite",
           }}
         />
-        {/* Blob 2 — azul médio, centro-direita */}
         <div
           className="absolute top-[10%] right-[0%] w-[55%] h-[55%] rounded-full opacity-[0.14]"
           style={{
@@ -73,7 +86,6 @@ export function HeroSection() {
             animation: "aurora-2 22s ease-in-out infinite",
           }}
         />
-        {/* Blob 3 — cyan claro, centro-baixo */}
         <div
           className="absolute bottom-[0%] left-[20%] w-[50%] h-[50%] rounded-full opacity-[0.10]"
           style={{
@@ -82,7 +94,6 @@ export function HeroSection() {
             animation: "aurora-3 26s ease-in-out infinite",
           }}
         />
-        {/* Blob 4 — azul escuro, canto inferior direito */}
         <div
           className="absolute bottom-[-15%] right-[-5%] w-[45%] h-[45%] rounded-full opacity-[0.20]"
           style={{
@@ -95,25 +106,25 @@ export function HeroSection() {
 
       {/* ── Cruzes decorativas ──────────────────────────────────────── */}
       {CROSSES.map(({ size, top, left, opacity }, i) => (
-        <motion.svg 
-          key={i} 
-          width={size} 
-          height={size} 
+        <motion.svg
+          key={i}
+          width={size}
+          height={size}
           viewBox="0 0 24 24"
-          className="absolute pointer-events-none" 
-          style={{ top, left, opacity }} 
+          className="absolute pointer-events-none"
+          style={{ top, left, opacity }}
           aria-hidden
-          animate={{ 
+          animate={{
             x: [0, (i % 2 === 0 ? 20 : -20), (i % 3 === 0 ? -15 : 25), 0],
             y: [0, (i % 2 !== 0 ? 25 : -20), (i % 3 !== 0 ? -30 : 15), 0],
             rotate: [0, 90, 180, 270, 360],
             scale: [1, 1.2, 1],
-            opacity: [opacity, opacity * 1.5, opacity]
+            opacity: [opacity, opacity * 1.5, opacity],
           }}
-          transition={{ 
-            duration: 15 + (i % 5) * 5, 
-            repeat: Infinity, 
-            ease: "easeInOut"
+          transition={{
+            duration: 15 + (i % 5) * 5,
+            repeat: Infinity,
+            ease: "easeInOut",
           }}
         >
           <rect x="10" y="1" width="4" height="22" fill="white" rx="1" />
@@ -147,26 +158,19 @@ export function HeroSection() {
                 >
                   Metas
                 </motion.span>
-                <span
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/[0.06] text-sm font-display font-semibold text-white/50 tracking-wide"
-                  style={{ perspective: "500px" }}
+                <motion.span
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: 0.72, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="relative inline-flex items-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] text-sm font-display font-bold tracking-wide overflow-hidden"
+                  style={{ color: "#0d2a47" }}
                 >
-                  {["2025", "–", "2026"].map((word, wi) => (
-                    <motion.span
-                      key={wi}
-                      initial={{ rotateX: word === "–" ? 0 : 90, opacity: 0 }}
-                      animate={{ rotateX: 0, opacity: 1 }}
-                      transition={{
-                        duration: word === "–" ? 0.3 : 0.55,
-                        delay: 0.72 + wi * 0.15,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                      style={{ display: "inline-block", transformOrigin: "top center" }}
-                    >
-                      {word}
-                    </motion.span>
-                  ))}
-                </span>
+                  {flipActive ? (
+                    <FlipWords words={["2026", "2025"]} duration={2500} />
+                  ) : (
+                    <span>2025</span>
+                  )}
+                </motion.span>
               </div>
             </div>
 
@@ -212,7 +216,7 @@ export function HeroSection() {
             className="flex-1 w-full max-w-sm lg:max-w-md"
           >
             <CardContainer className="w-full" containerClassName="w-full">
-              <CardBody className="w-full bg-white/[0.06]  border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5 flex flex-col gap-4">
+              <CardBody className="w-full bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5 flex flex-col gap-4">
 
                 {/* Carousel — z base */}
                 <CardItem translateZ={15} className="w-full overflow-hidden rounded-xl">
@@ -229,61 +233,29 @@ export function HeroSection() {
                   </motion.div>
                 </CardItem>
 
-                {/* Card Progresso — z médio */}
-                <CardItem translateZ={40} className="w-full">
-                  <SpotlightCard
-                    spotlightColor="rgba(66, 185, 235, 0.18)"
-                    className="bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-5"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#42b9eb] animate-pulse" />
-                        <span className="text-white/40 text-xs uppercase tracking-widest font-medium">Progresso Geral</span>
-                      </div>
-                      <TrendingUp size={15} className="text-[#42b9eb]" />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <span className="text-4xl font-display font-bold text-white leading-none">{stats.pct}%</span>
-                        <p className="text-white/30 text-xs mt-1">{stats.concluidas} de {stats.total} etapas</p>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between text-[10px] text-white/30 mb-1.5">
-                          <span>0%</span>
-                          <span className="text-[#42b9eb] font-medium">{stats.pct}%</span>
-                          <span>100%</span>
-                        </div>
-                        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full bg-[#42b9eb] rounded-full"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${stats.pct}%` }}
-                            transition={{ duration: 1.2, delay: 0.9, ease: "easeOut" }}
-                          />
-                        </div>
-                        <p className="text-white/30 text-[10px] mt-1.5">Plano de Ação 2025</p>
-                      </div>
-                    </div>
-                  </SpotlightCard>
-                </CardItem>
-
-                {/* Card Stats — z alto */}
+                {/* Métricas — z alto */}
                 <CardItem translateZ={60} className="w-full">
                   <SpotlightCard
                     spotlightColor="rgba(66, 185, 235, 0.12)"
                     className="bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl p-4"
                   >
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] uppercase tracking-widest text-white/30 font-medium">Métricas</span>
+                      <TrendingUp size={13} className="text-[#42b9eb]/60" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
                       {[
-                        { icon: <LayoutList size={13} className="text-white/50" />,     value: stats.planos,      label: "Planos"     },
-                        { icon: <CheckCircle2 size={13} className="text-emerald-400" />, value: stats.concluidas,  label: "Concluídas" },
-                        { icon: <Clock3 size={13} className="text-yellow-400" />,        value: stats.emAndamento, label: "Andamento"  },
-                        { icon: <FileCheck2 size={13} className="text-[#42b9eb]" />,     value: stats.docs,        label: "Docs"       },
+                        { icon: <LayoutList size={14} className="text-white/50" />,      value: stats.total,       label: "Total de Metas",       accent: "text-white"        },
+                        { icon: <CheckCircle2 size={14} className="text-emerald-400" />, value: stats.concluidas,  label: "Concluídas",           accent: "text-emerald-400"  },
+                        { icon: <Clock3 size={14} className="text-yellow-400" />,        value: stats.emAndamento, label: "Objetivos em Andamento", accent: "text-yellow-400"   },
+                        { icon: <FileCheck2 size={14} className="text-[#42b9eb]" />,     value: stats.docs,        label: "Docs Enviados",        accent: "text-[#42b9eb]"    },
                       ].map((s, i) => (
-                        <div key={i} className="flex flex-col items-center gap-1 py-3 rounded-xl bg-white/5 border border-white/[0.08]">
-                          {s.icon}
-                          <span className="text-white font-bold text-lg leading-none">{s.value}</span>
-                          <span className="text-white/30 text-[10px]">{s.label}</span>
+                        <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.07]">
+                          <div className="shrink-0">{s.icon}</div>
+                          <div className="flex flex-col min-w-0">
+                            <span className={`font-display font-bold text-base leading-none ${s.accent}`}>{s.value}</span>
+                            <span className="text-white/35 text-[10px] mt-0.5 truncate">{s.label}</span>
+                          </div>
                         </div>
                       ))}
                     </div>

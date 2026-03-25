@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Layers, CheckCircle2, Clock, FileText } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getOverviewStats, getTemas } from "@/lib/metas-api";
+import { getOverviewStats, getTemas, getDashboardStats } from "@/lib/metas-api";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3DCard";
 import { TypewriterEffect } from "@/components/ui/typewriter-effect";
@@ -34,7 +34,7 @@ const CARD_BASE =
 
 const STATUS_ITEMS: StatusItem[] = [
   { label: "Concluídas",        key: "concluidas",       icon: CheckCircle2, iconClass: "text-emerald-400" },
-  { label: "Em Andamento",      key: "emAndamento",      icon: Clock,        iconClass: "text-yellow-400"  },
+  { label: "Objetivos em Andamento", key: "emAndamento", icon: Clock,        iconClass: "text-yellow-400"  },
   { label: "Total Documentos",  key: "totalDocumentos",  icon: FileText,     iconClass: "text-[#42b9eb]"   },
 ];
 
@@ -195,6 +195,11 @@ export function PanoramaSection() {
     queryFn: getOverviewStats,
   });
 
+  const { data: dashboard } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: getDashboardStats,
+  });
+
   const { data: temas } = useQuery({
     queryKey: ["temas"],
     queryFn: getTemas,
@@ -215,9 +220,11 @@ export function PanoramaSection() {
       )
     : 0;
 
+  const totalTopicos = dashboard?.metricas?.totalTopicos ?? 0;
+
   const stats: StatsData | null = overview
     ? {
-        total: overview.totalMetas,
+        total: totalTopicos || overview.totalMetas,
         emAndamento: overview.emAndamento,
         concluidas: overview.concluidas,
         totalDocumentos,
