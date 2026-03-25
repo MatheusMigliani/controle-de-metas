@@ -155,10 +155,13 @@ export function TemporalSection() {
           {TABS.map(({ id, label, Icon, desc }) => {
             const isActive = activeTab === id;
             return (
-              <button
+              <div
                 key={id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleTabClick(id)}
-                className={`relative text-left p-5 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                onKeyDown={(e) => e.key === "Enter" && handleTabClick(id)}
+                className={`relative cursor-pointer text-left p-5 rounded-2xl border transition-all duration-300 overflow-hidden ${
                   isActive
                     ? "border-primary/40 bg-primary/5"
                     : "border-border/20 bg-card/20 hover:border-border/40 hover:bg-card/30"
@@ -218,7 +221,7 @@ export function TemporalSection() {
                     />
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
