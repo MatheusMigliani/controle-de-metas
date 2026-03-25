@@ -147,15 +147,23 @@ export function HeroSection() {
                 >
                   Metas
                 </motion.span>
-                <span className="flex text-2xl lg:text-3xl xl:text-4xl font-display font-semibold text-white/30 tracking-tight">
-                  {"25 - 26".split("").map((char, i) => (
+                <span
+                  className="flex gap-2 text-2xl lg:text-3xl xl:text-4xl font-display font-semibold text-white/30 tracking-tight"
+                  style={{ perspective: "500px" }}
+                >
+                  {["2025", "2026"].map((word, wi) => (
                     <motion.span
-                      key={i}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.72 + i * 0.055, ease: [0.22, 1, 0.36, 1] }}
+                      key={word}
+                      initial={{ rotateX: 90, opacity: 0 }}
+                      animate={{ rotateX: 0, opacity: 1 }}
+                      transition={{
+                        duration: 0.55,
+                        delay: 0.72 + wi * 0.18,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                      style={{ display: "inline-block", transformOrigin: "top center" }}
                     >
-                      {char === " " ? "\u00A0" : char}
+                      {word}
                     </motion.span>
                   ))}
                 </span>
