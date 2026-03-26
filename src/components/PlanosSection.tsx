@@ -40,7 +40,6 @@ import {
   Target,
   LayoutGrid,
   Layers,
-  PanelRightOpen,
   X,
   ChevronsUpDown,
   Search,
@@ -70,7 +69,7 @@ function temaToPlano(tema: ApiTema, index: number): PlanoDeAcao {
     title: tema.nome.replace(/ \(.*\)$/, ""),
     description: tema.topicos[0]?.descricao ?? "—",
     area:
-      [...new Set(tema.topicos.map((t) => t.setorNome).filter(Boolean))].join(", ") || "—",
+      [...new Set(tema.topicos.flatMap((t) => t.setorNomes))].join(", ") || "—",
     created_at: tema.createdAt,
   };
 }
@@ -88,7 +87,8 @@ function temaToEtapas(tema: ApiTema, code: string): Etapa[] {
         description: meta.descricao,
         tema: topico.descricao,
         relacao_direta: code,
-        area: topico.setorNome || "—",
+        area: topico.setorNomes.join(", ") || "—",
+        areas: topico.setorNomes,
         prazo: "—",
         status: mapStatus(meta.status),
         documento_comprobatorio: meta.documentUrl ? "Documento" : "",
@@ -195,9 +195,9 @@ function TopicoAccordionItem({
 
         {/* Setor + chevron */}
         <div className="flex items-center gap-2 shrink-0 mt-0.5">
-          {topico.setorNome && (
+          {topico.setorNomes.length > 0 && (
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb] text-center">
-              {topico.setorNome}
+              {topico.setorNomes.join(", ")}
             </span>
           )}
           <ChevronDown className="w-3.5 h-3.5 text-white/25 transition-transform duration-200 group-data-[state=open]/item:rotate-180 shrink-0" />
@@ -480,7 +480,7 @@ function TemaCard({
             }`}
           >
             <LayoutGrid className="w-3 h-3" />
-            {selected ? "Selecionado" : "Ver etapas"}
+            {selected ? "Selecionado" : "Ver objetivos"}
           </span>
         </div>
       </SpotlightCard>
@@ -530,14 +530,14 @@ export function PlanosSection() {
   const selectedTema = temas?.find((t) => t.id === selectedId) ?? null;
   const sheetTema = temas?.find((t) => t.id === sheetId) ?? null;
   const selectedPlan = planos.find((p) => p.id === selectedId);
-  const planEtapas = (selectedId ? (etapasByPlan[selectedId] ?? []) : [])
+  const planObjetivos = (selectedId ? (etapasByPlan[selectedId] ?? []) : [])
     .slice()
     .sort((a, b) => {
-      const num = (s: string) => { const m = s.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
+      const num = (s: string) => { const m = s.match(/Meta\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
       return num(a.tema) - num(b.tema);
     });
   const q = searchQuery.trim().toLowerCase();
-  const filteredEtapas = planEtapas.filter((e) => {
+  const filteredObjetivos = planObjetivos.filter((e) => {
     const matchesSearch = !q ||
       e.description.toLowerCase().includes(q) ||
       e.tema.toLowerCase().includes(q) ||
@@ -545,12 +545,12 @@ export function PlanosSection() {
     const matchesStatus = statusFilter === "all" || e.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-  const totalPages = Math.ceil(filteredEtapas.length / PAGE_SIZE);
-  const pagedEtapas = filteredEtapas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const completed = planEtapas.filter(
+  const totalPages = Math.ceil(filteredObjetivos.length / PAGE_SIZE);
+  const pagedObjetivos = filteredObjetivos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const completed = planObjetivos.filter(
     (e) => e.status === "Concluída" || e.status === "Documento Gerado"
   ).length;
-  const pct = planEtapas.length > 0 ? Math.round((completed / planEtapas.length) * 100) : 0;
+  const pct = planObjetivos.length > 0 ? Math.round((completed / planObjetivos.length) * 100) : 0;
 
   const totalTopicos = (temas ?? []).reduce((acc, t) => acc + t.topicos.length, 0);
   const totalMetas = (temas ?? []).reduce(
@@ -663,10 +663,10 @@ export function PlanosSection() {
                         <div className="flex items-baseline gap-1 justify-end">
                           <AnimatedCounter value={completed} className="text-3xl text-primary" />
                           <span className="text-muted-foreground text-lg">/</span>
-                          <AnimatedCounter value={planEtapas.length} className="text-3xl text-foreground" />
+                          <AnimatedCounter value={planObjetivos.length} className="text-3xl text-foreground" />
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          etapas &bull; {mounted ? `${pct}%` : "--%"} concluído
+                          objetivos &bull; {mounted ? `${pct}%` : "--%"} concluído
                         </span>
                       </div>
                     </div>
@@ -729,7 +729,7 @@ export function PlanosSection() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-border/50">
-                            {["Etapa", "Descritivo", "Tema", "Área", "Prazo", "Status", "Doc.", "Link", ""].map(
+                            {["Objetivo", "Descritivo", "Tema", "Área", "Status", "Doc."].map(
                               (h) => (
                                 <th
                                   key={h}
@@ -749,32 +749,38 @@ export function PlanosSection() {
                                 <td className="px-4 py-3"><div className="h-3 rounded bg-white/[0.06] animate-pulse" style={{ width: `${55 + (i * 17) % 35}%` }} /></td>
                                 <td className="px-4 py-3"><div className="h-3 w-28 rounded bg-white/[0.06] animate-pulse" /></td>
                                 <td className="px-4 py-3"><div className="h-3 w-16 rounded bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-3 w-12 rounded bg-white/[0.06] animate-pulse" /></td>
                                 <td className="px-4 py-3"><div className="h-5 w-20 rounded-full bg-white/[0.06] animate-pulse" /></td>
                                 <td className="px-4 py-3"><div className="h-3 w-8 rounded bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-3 w-4 rounded bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-6 w-6 rounded bg-white/[0.06] animate-pulse" /></td>
                               </tr>
                             ))
-                          ) : pagedEtapas.map((etapa, i) => {
-                            const etapaNum = (() => { const m = etapa.tema.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : etapa.step_number; })();
-                            const prevNum  = i > 0 ? (() => { const m = pagedEtapas[i - 1].tema.match(/Etapa\s+(\d+)/i); return m ? parseInt(m[1], 10) : pagedEtapas[i - 1].step_number; })() : null;
-                            const isFirstOfGroup = prevNum !== etapaNum;
+                          ) : pagedObjetivos.map((objetivo, i) => {
+                            const objetivoNum = (() => { const m = objetivo.tema.match(/Meta\s+(\d+)/i); return m ? parseInt(m[1], 10) : objetivo.step_number; })();
+                            const prevNum  = i > 0 ? (() => { const m = pagedObjetivos[i - 1].tema.match(/Meta\s+(\d+)/i); return m ? parseInt(m[1], 10) : pagedObjetivos[i - 1].step_number; })() : null;
+                            const isFirstOfGroup = prevNum !== objetivoNum;
                             return (
                               <motion.tr
-                                key={etapa.id}
+                                key={objetivo.id}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.04 }}
-                                className={`border-b border-border/20 hover:bg-accent/20 transition-colors ${
-                                  isFirstOfGroup && i !== 0 ? "border-t border-border/40" : ""
-                                } ${i % 2 === 0 ? "bg-card/20" : ""}`}
+                                onClick={() => {
+                                  setSheetId(objetivo.plan_id);
+                                  setSheetOpenTopico(`${objetivo.plan_id}-${objetivo.topico_id}`);
+                                }}
+                                className={`border-b border-border/20 hover:bg-accent/20 transition-colors cursor-pointer ${
+                                  isFirstOfGroup && i !== 0 ? "border-t-2 border-t-white/10" : ""
+                                }`}
                               >
-                                <td className="px-4 py-2.5 font-display font-semibold text-primary">
-                                  {isFirstOfGroup ? `E${etapaNum}` : <span className="text-border/40 text-[10px]">↳</span>}
+                                <td className="px-4 py-2.5 whitespace-nowrap">
+                                  {isFirstOfGroup
+                                    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb]">
+                                        Meta {String(objetivoNum).padStart(2, "0")}
+                                      </span>
+                                    : <span className="text-border/30 text-[10px] pl-1">↳</span>
+                                  }
                                 </td>
                                 <td className="px-4 py-2.5 text-foreground max-w-[400px]">
-                                  {etapa.description}
+                                  {objetivo.description}
                                 </td>
                                 <td className="px-4 py-2.5 text-muted-foreground max-w-[200px]">
                                   <TooltipProvider delayDuration={200}>
@@ -782,7 +788,7 @@ export function PlanosSection() {
                                       <TooltipTrigger asChild>
                                         <span className="group inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-md border border-transparent hover:border-border/60 hover:bg-accent/40 transition-all cursor-default">
                                           <span className="truncate text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                                            {etapa.tema.replace(/^Etapa\s+\d+\.\s*/i, "")}
+                                            {objetivo.tema.replace(/^Meta\s+\d+\.\s*/i, "")}
                                           </span>
                                           <ChevronsUpDown className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
                                         </span>
@@ -790,47 +796,33 @@ export function PlanosSection() {
                                       <TooltipContent side="top" align="start" className="max-w-xs p-3">
                                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Tema</p>
                                         <p className="text-xs text-popover-foreground leading-relaxed">
-                                          {etapa.tema.replace(/^Etapa\s+\d+\.\s*/i, "")}
+                                          {objetivo.tema.replace(/^Meta\s+\d+\.\s*/i, "")}
                                         </p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 </td>
-                                <td className="px-4 py-2.5 text-muted-foreground max-w-[140px] truncate" title={etapa.area}>{etapa.area}</td>
-                                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                                  {etapa.prazo}
-                                </td>
                                 <td className="px-4 py-2.5">
-                                  <StatusBadge status={etapa.status} />
-                                </td>
-                                <td className="px-4 py-2.5 text-muted-foreground">
-                                  {etapa.documento_comprobatorio || "—"}
-                                </td>
-                                <td className="px-4 py-2.5">
-                                  {etapa.drive_link ? (
-                                    <a
-                                      href={etapa.drive_link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-primary hover:text-primary/80 transition-colors"
-                                    >
-                                      <ExternalLink className="w-4 h-4" />
-                                    </a>
+                                  {objetivo.areas.length === 0 ? (
+                                    <span className="text-muted-foreground">—</span>
                                   ) : (
-                                    <span className="text-muted-foreground/40">—</span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {objetivo.areas.map((area) => (
+                                        <span
+                                          key={area}
+                                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#42b9eb]/[0.08] border border-[#42b9eb]/20 text-[#42b9eb]/80 whitespace-nowrap leading-tight"
+                                        >
+                                          {area}
+                                        </span>
+                                      ))}
+                                    </div>
                                   )}
                                 </td>
                                 <td className="px-4 py-2.5">
-                                  <button
-                                    onClick={() => {
-                                      setSheetId(etapa.plan_id);
-                                      setSheetOpenTopico(`${etapa.plan_id}-${etapa.topico_id}`);
-                                    }}
-                                    title="Ver tópico no sheet"
-                                    className="flex items-center justify-center w-6 h-6 rounded-md border border-white/[0.08] text-white/25 hover:text-[#42b9eb] hover:border-[#42b9eb]/30 hover:bg-[#42b9eb]/[0.07] transition-all"
-                                  >
-                                    <PanelRightOpen className="w-3 h-3" />
-                                  </button>
+                                  <StatusBadge status={objetivo.status} />
+                                </td>
+                                <td className="px-4 py-2.5 text-muted-foreground">
+                                  {objetivo.documento_comprobatorio || "—"}
                                 </td>
                               </motion.tr>
                             );
@@ -838,10 +830,10 @@ export function PlanosSection() {
                         </tbody>
                       </table>
 
-                      {!tableLoading && filteredEtapas.length === 0 && (
+                      {!tableLoading && filteredObjetivos.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-12 gap-2">
                           <Search className="w-5 h-5 text-white/15" />
-                          <p className="text-xs text-white/25">Nenhuma etapa encontrada para este filtro.</p>
+                          <p className="text-xs text-white/25">Nenhum objetivo encontrado para este filtro.</p>
                           <button
                             onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
                             className="text-[11px] text-[#42b9eb]/50 hover:text-[#42b9eb] transition-colors mt-1"
@@ -856,12 +848,12 @@ export function PlanosSection() {
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between px-5 py-4 border-t border-border/30">
                         <span className="text-xs text-muted-foreground">
-                          Etapas{" "}
+                          Objetivos{" "}
                           <span className="font-medium text-foreground">
-                            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredEtapas.length)}
+                            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredObjetivos.length)}
                           </span>{" "}
                           de{" "}
-                          <span className="font-medium text-foreground">{filteredEtapas.length}</span>
+                          <span className="font-medium text-foreground">{filteredObjetivos.length}</span>
                         </span>
 
                         <div className="flex items-center gap-1">

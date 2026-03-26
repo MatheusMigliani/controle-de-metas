@@ -23,6 +23,7 @@ export interface Etapa {
   tema: string;
   relacao_direta: string;
   area: string;
+  areas: string[];
   prazo: string;
   status: EtapaStatus;
   documento_comprobatorio: string;
