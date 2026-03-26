@@ -87,8 +87,8 @@ export interface ApiTopico {
   id: string;
   temaId: string;
   descricao: string;
-  setorId: string | null;
-  setorNome: string | null;
+  setorIds: string[];
+  setorNomes: string[];
   pontosFocais: string[];
   createdAt: string;
   updatedAt: string;
