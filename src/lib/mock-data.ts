@@ -76,6 +76,7 @@ const generateEtapas = (): Etapa[] => {
         tema: `${i} – ${plan.title}`,
         relacao_direta: plan.code,
         area: plan.area,
+        areas: [plan.area],
         prazo: `2026-${month}-${day}`,
         status: st,
         documento_comprobatorio: st === "Concluída" || st === "Documento Gerado" ? "Documento Gerado" : "",
