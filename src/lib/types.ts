@@ -84,6 +84,13 @@ export interface ApiMeta {
   updatedAt: string;
 }
 
+export interface DocumentoPublico {
+  id: string;
+  nome: string;
+  driveOficialUrl: string;
+  aprovadoEm: string;
+}
+
 export interface ApiTopico {
   id: string;
   temaId: string;
@@ -94,6 +101,7 @@ export interface ApiTopico {
   createdAt: string;
   updatedAt: string;
   metas: ApiMeta[];
+  documentosAprovados: DocumentoPublico[];
 }
 
 export interface ApiTema {

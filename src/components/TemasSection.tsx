@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import * as Accordion from "@radix-ui/react-accordion";
-import { ExternalLink, ChevronDown, Users } from "lucide-react";
+import { ExternalLink, ChevronDown, Users, FileText } from "lucide-react";
 import { getTemas } from "@/lib/metas-api";
 import { META_STATUS_CONFIG, type ApiTema, type ApiTopico, type MetaStatus } from "@/lib/types";
 import SpotlightCard from "@/components/SpotlightCard";
@@ -148,6 +148,33 @@ function TopicoAccordionItem({ topico, index }: { topico: ApiTopico; index: numb
             </ul>
           ) : (
             <p className="text-xs text-white/25 italic">Nenhuma meta cadastrada.</p>
+          )}
+
+          {/* Documentos aprovados */}
+          {topico.documentosAprovados?.length > 0 && (
+            <div className="border-t border-white/[0.06] pt-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/25 flex items-center gap-1.5 mb-2">
+                <FileText className="w-3 h-3" />Documentos Oficiais
+              </p>
+              <ul className="space-y-1.5">
+                {topico.documentosAprovados.map((doc) => (
+                  <li key={doc.id}>
+                    <a
+                      href={doc.driveOficialUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-[11px] text-[#42b9eb]/70 hover:text-[#42b9eb] transition-colors group"
+                    >
+                      <FileText className="w-3 h-3 shrink-0" />
+                      <span className="underline underline-offset-2 decoration-[#42b9eb]/30 group-hover:decoration-[#42b9eb] truncate max-w-[280px]">
+                        {doc.nome}
+                      </span>
+                      <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-50 group-hover:opacity-100" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       </Accordion.Content>
