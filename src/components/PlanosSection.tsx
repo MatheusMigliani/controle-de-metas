@@ -92,7 +92,7 @@ function temaToEtapas(tema: ApiTema, code: string): Etapa[] {
         areas: topico.setorNomes,
         prazo: "—",
         status: mapStatus(meta.status),
-        documento_comprobatorio: meta.documentUrl ? "Documento" : "",
+        documento_comprobatorio: meta.documentUrl ? "SIM" : "NÃO",
         drive_link: meta.documentUrl ?? "",
         created_at: meta.createdAt,
       });
@@ -605,7 +605,7 @@ export function PlanosSection() {
             Estratégia & Planos
           </h2>
           <p className="text-white/40 max-w-lg text-lg">
-            Visualize os temas estratégicos e os planos de ação com status em tempo real.
+            Visualize o status dos temas do Plano de Ação em tempo real.
           </p>
         </motion.div>
 
@@ -757,7 +757,7 @@ export function PlanosSection() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-border/50">
-                            {["Objetivo", "Descritivo", "Tema", "Área", "Status", "Doc."].map(
+                            {["Tema", "Meta", "Descritivo", "Área", "Status", "Doc"].map(
                               (h) => (
                                 <th
                                   key={h}
@@ -799,17 +799,6 @@ export function PlanosSection() {
                                   isFirstOfGroup && i !== 0 ? "border-t-2 border-t-white/10" : ""
                                 }`}
                               >
-                                <td className="px-4 py-2.5 whitespace-nowrap">
-                                  {isFirstOfGroup
-                                    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb]">
-                                        Meta {String(objetivoNum).padStart(2, "0")}
-                                      </span>
-                                    : <span className="text-border/30 text-[10px] pl-1">↳</span>
-                                  }
-                                </td>
-                                <td className="px-4 py-2.5 text-foreground max-w-[400px]">
-                                  {objetivo.description}
-                                </td>
                                 <td className="px-4 py-2.5 text-muted-foreground max-w-[200px]">
                                   <TooltipProvider delayDuration={200}>
                                     <Tooltip>
@@ -830,6 +819,14 @@ export function PlanosSection() {
                                     </Tooltip>
                                   </TooltipProvider>
                                 </td>
+                                <td className="px-4 py-2.5 whitespace-nowrap">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb]">
+                                    Meta {String(objetivoNum).padStart(2, "0")}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-foreground max-w-[400px]">
+                                  {objetivo.description}
+                                </td>
                                 <td className="px-4 py-2.5">
                                   {objetivo.areas.length === 0 ? (
                                     <span className="text-muted-foreground">—</span>
@@ -849,8 +846,8 @@ export function PlanosSection() {
                                 <td className="px-4 py-2.5">
                                   <StatusBadge status={objetivo.status} />
                                 </td>
-                                <td className="px-4 py-2.5 text-muted-foreground">
-                                  {objetivo.documento_comprobatorio || "—"}
+                                <td className={`px-4 py-2.5 font-bold ${objetivo.documento_comprobatorio === "SIM" ? "text-emerald-400" : "text-rose-400/50"}`}>
+                                  {objetivo.documento_comprobatorio}
                                 </td>
                               </motion.tr>
                             );

@@ -81,24 +81,6 @@ export function FooterSection() {
                   </a>
                 ))}
               </div>
-
-              <div className="flex flex-col gap-3">
-                <h4 className="text-white/80 font-display font-semibold text-sm mb-1">
-                  Análise
-                </h4>
-                {[
-                  { href: "#analise", label: "Análise de Desempenho" },
-                  { href: "#calendario", label: "Calendário de Metas" },
-                ].map(({ href, label }) => (
-                  <a
-                    key={href}
-                    href={href}
-                    className="text-[11px] text-white/35 hover:text-[#42b9eb] transition-colors w-fit"
-                  >
-                    {label}
-                  </a>
-                ))}
-              </div>
             </div>
 
             {/* Badge SUBG */}

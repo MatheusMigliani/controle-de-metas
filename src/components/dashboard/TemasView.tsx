@@ -27,7 +27,7 @@ interface Meta {
   updatedAt?:       string;
 }
 
-type DocumentoStatus = "PendenteAprovacao" | "Aprovado" | "Devolvido";
+type DocumentoStatus = "PendenteAprovacao" | "PendenteConfirmacaoAnalista" | "Aprovado" | "Devolvido";
 type DocumentoAcao   = "Upload" | "Aprovado" | "Devolvido" | "Reenvio";
 
 interface MetaStatusLog {
@@ -330,11 +330,12 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   const [isReturning, setIsReturning]   = useState(false);
 
   // Approval modal state
-  const [approvalDocId, setApprovalDocId]   = useState<string | null>(null);
-  const [approvalMode, setApprovalMode]     = useState<"move" | "upload" | null>(null);
-  const [approvalFile, setApprovalFile]     = useState<File | null>(null);
-  const [isApproving, setIsApproving]       = useState(false);
-  const approvalFileInputRef                = useRef<HTMLInputElement>(null);
+  const [approvalDocId, setApprovalDocId]         = useState<string | null>(null);
+  const [approvalMode, setApprovalMode]           = useState<"move" | "upload" | null>(null);
+  const [approvalFile, setApprovalFile]           = useState<File | null>(null);
+  const [approvalComentario, setApprovalComentario] = useState("");
+  const [isApproving, setIsApproving]             = useState(false);
+  const approvalFileInputRef                      = useRef<HTMLInputElement>(null);
   
   // Specific loading states for actions
   const [approvingId, setApprovingId]     = useState<string | null>(null);
@@ -446,12 +447,14 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
     setApprovalDocId(docId);
     setApprovalMode(null);
     setApprovalFile(null);
+    setApprovalComentario("");
   }
 
   function closeApprovalModal() {
     setApprovalDocId(null);
     setApprovalMode(null);
     setApprovalFile(null);
+    setApprovalComentario("");
     if (approvalFileInputRef.current) approvalFileInputRef.current.value = "";
   }
 
@@ -460,7 +463,8 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
     setIsApproving(true);
     try {
       const r = await api.post<{ data: TopicoDocumento }>(
-        `/topicos/${topico.id}/documents/${approvalDocId}/approve`, {}
+        `/topicos/${topico.id}/documents/${approvalDocId}/approve`,
+        { comentario: approvalComentario || null }
       );
       onDocumentsChange(topico.id, documents.map((d) => d.id === approvalDocId ? r.data.data : d));
       toast.success("Documento aprovado e movido para o Drive oficial!");
@@ -482,13 +486,14 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
     setIsApproving(true);
     const formData = new FormData();
     formData.append("file", approvalFile);
+    if (approvalComentario) formData.append("comentario", approvalComentario);
     try {
       const r = await api.post<{ data: TopicoDocumento }>(
         `/topicos/${topico.id}/documents/${approvalDocId}/approve-with-file`, formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
       onDocumentsChange(topico.id, documents.map((d) => d.id === approvalDocId ? r.data.data : d));
-      toast.success("Arquivo corrigido aprovado e enviado para o Drive oficial!");
+      toast.success("Arquivo substituído. Aguardando confirmação do analista.");
       closeApprovalModal();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -515,6 +520,21 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       toast.error("Erro ao devolver o documento.");
     } finally {
       setIsReturning(false);
+    }
+  }
+
+  async function handleConfirm(docId: string) {
+    setApprovingId(docId);
+    try {
+      const r = await api.post<{ data: TopicoDocumento }>(
+        `/topicos/${topico.id}/documents/${docId}/confirm`, {}
+      );
+      onDocumentsChange(topico.id, documents.map((d) => d.id === docId ? r.data.data : d));
+      toast.success("Versão final confirmada e enviada para o Drive oficial!");
+    } catch {
+      toast.error("Erro ao confirmar o documento.");
+    } finally {
+      setApprovingId(null);
     }
   }
 
@@ -577,9 +597,10 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   }
 
   const DOC_STATUS: Record<DocumentoStatus, { label: string; color: string }> = {
-    PendenteAprovacao: { label: "Aguardando aprovação", color: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20" },
-    Aprovado:          { label: "Aprovado",             color: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20" },
-    Devolvido:         { label: "Devolvido",            color: "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20" },
+    PendenteAprovacao:           { label: "Aguardando aprovação",       color: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20" },
+    PendenteConfirmacaoAnalista: { label: "Aguardando confirmação",     color: "bg-violet-50 text-violet-600 border-violet-200 dark:bg-violet-400/10 dark:text-violet-400 dark:border-violet-400/20" },
+    Aprovado:                    { label: "Aprovado",                   color: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20" },
+    Devolvido:                   { label: "Devolvido",                  color: "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20" },
   };
 
   return (
@@ -672,10 +693,10 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       <Dialog open={!!approvalDocId} onOpenChange={(o) => { if (!o) closeApprovalModal(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Aprovar documento</DialogTitle>
+            <DialogTitle>Revisar documento</DialogTitle>
           </DialogHeader>
           <div className="py-2 flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">Escolha como deseja aprovar o documento:</p>
+            <p className="text-sm text-muted-foreground">O analista receberá a notificação para confirmar a versão final antes de ir para a pasta oficial.</p>
 
             {/* Opção A — mover arquivo atual */}
             {(() => {
@@ -716,9 +737,22 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {approvalFile
                   ? `Arquivo selecionado: ${approvalFile.name}`
-                  : "Clique para selecionar um PDF. Ele substituirá o staging e irá para a pasta oficial."}
+                  : "Clique para selecionar um PDF. Ele substituirá o atual e irá para a pasta oficial."}
               </p>
             </button>
+
+            {/* Mensagem para o analista */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Mensagem para o analista <span className="normal-case font-normal">(opcional)</span>
+              </label>
+              <Textarea
+                placeholder="Descreva o que foi alterado ou o que o analista deve verificar..."
+                value={approvalComentario}
+                onChange={(e) => setApprovalComentario(e.target.value)}
+                rows={3}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeApprovalModal} disabled={isApproving}>Cancelar</Button>
@@ -728,7 +762,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
               className="bg-emerald-500 hover:bg-emerald-600 text-white"
             >
               {isApproving ? <Loader2 size={14} className="animate-spin mr-2" /> : <ThumbsUp size={14} className="mr-2" />}
-              Confirmar aprovação
+              Enviar para confirmação do analista
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -976,8 +1010,35 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                               </div>
                             )}
 
+                            {/* Row 3b: info aguardando confirmação */}
+                            {doc.status === "PendenteConfirmacaoAnalista" && (
+                              <div className="ml-11 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 space-y-1">
+                                <p className="text-[11px] text-violet-700 dark:text-violet-400 font-medium">
+                                  Revisado pelo aprovador — aguardando sua confirmação da versão final.
+                                </p>
+                                {doc.comentarioAprovacao && (
+                                  <p className="text-[11px] text-violet-600 dark:text-violet-300">
+                                    <span className="font-semibold">Mensagem:</span> {doc.comentarioAprovacao}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
                             {/* Row 4: action buttons + histórico */}
                             <div className="ml-11 flex items-center gap-2 flex-wrap mt-1">
+                              {/* Confirm — analista original ou Admin quando aguardando confirmação */}
+                              {doc.status === "PendenteConfirmacaoAnalista" &&
+                               (user?.userId === doc.uploadedByUserId || user?.role === "Admin") && (
+                                <button
+                                  onClick={() => handleConfirm(doc.id)}
+                                  disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {approvingId === doc.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                  Confirmar versão final
+                                </button>
+                              )}
+
                               {/* Approve + Return — Aprovador/Admin on pending docs */}
                               {isApprover && doc.status === "PendenteAprovacao" && (
                                 <>
@@ -987,7 +1048,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                                     className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     <ThumbsUp size={12} />
-                                    Aprovar
+                                    Revisado
                                   </button>
                                   <button
                                     onClick={() => setReturnDocId(doc.id)}

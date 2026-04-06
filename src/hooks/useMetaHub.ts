@@ -36,7 +36,7 @@ export interface TopicoDocumentoPayload {
   driveOficialUrl?:    string;
   uploadedAt:          string;
   uploadedByUserId:    string;
-  status:              "PendenteAprovacao" | "Aprovado" | "Devolvido";
+  status:              "PendenteAprovacao" | "PendenteConfirmacaoAnalista" | "Aprovado" | "Devolvido";
   comentarioAprovacao?: string;
 }
 

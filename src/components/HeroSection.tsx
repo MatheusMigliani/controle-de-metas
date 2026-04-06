@@ -139,6 +139,16 @@ export function HeroSection() {
           {/* ─── Left ─────────────────────────────────────────────── */}
           <div className="flex-1 flex flex-col gap-6 lg:pl-4">
 
+                        {/* Logos */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
+              className="flex items-center gap-6"
+            >
+              <Image src="/brand/logobranca.png" alt="Prefeitura Rio — Saúde" width={140} height={36} className="object-contain" priority />
+            </motion.div>
+
             {/* Título */}
             <div className="flex flex-col gap-1">
               <SplitText
@@ -149,7 +159,7 @@ export function HeroSection() {
                 rootMargin="0px"
                 className="text-5xl lg:text-6xl xl:text-7xl font-display font-semibold leading-tight tracking-tight text-white"
               />
-              <div className="flex items-baseline gap-4">
+              <div className="flex items-start gap-4">
                 <motion.span
                   initial={{ opacity: 0, y: 28, filter: "blur(6px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -162,7 +172,7 @@ export function HeroSection() {
                   initial={{ opacity: 0, y: 10, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: 0.72, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="relative inline-flex items-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] text-sm font-display font-bold tracking-wide overflow-hidden"
+                  className="relative mt-2 lg:mt-3 inline-flex items-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#42b9eb] to-[#7dd3f8] text-sm font-display font-bold tracking-wide overflow-hidden"
                   style={{ color: "#0d2a47" }}
                 >
                   {flipActive ? (
@@ -173,18 +183,6 @@ export function HeroSection() {
                 </motion.span>
               </div>
             </div>
-
-            {/* Logos */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55 }}
-              className="flex items-center gap-6"
-            >
-              <Image src="/brand/logobranca.png" alt="Prefeitura Rio — Saúde" width={140} height={36} className="object-contain" priority />
-              <div className="w-px h-9 bg-white/20 shrink-0" />
-              <Image src="/brand/tcmrio-logo.png" alt="TCMRio" width={108} height={22} className="object-contain" />
-            </motion.div>
 
             {/* Subtítulo */}
             <motion.p
@@ -201,10 +199,22 @@ export function HeroSection() {
               href="#planos"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.85 }}
-              className="w-fit inline-flex items-center gap-2 bg-[#42b9eb] text-[#13335a] px-7 py-3.5 rounded-full font-display font-bold text-sm hover:opacity-90 active:scale-95 transition-all shadow-[0_0_24px_rgba(66,185,235,0.35)]"
+              whileHover={{ 
+                scale: 1.05, 
+                backgroundColor: "#5cc9f5",
+                boxShadow: "0 0 32px rgba(66, 185, 235, 0.5)" 
+              }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 400, 
+                damping: 17,
+                opacity: { duration: 0.6, delay: 0.85 },
+                y: { duration: 0.6, delay: 0.85 }
+              }}
+              className="w-fit inline-flex items-center gap-2 bg-[#42b9eb] text-[#13335a] px-7 py-3.5 rounded-full font-display font-bold text-sm tracking-wide shadow-[0_0_24px_rgba(66,185,235,0.35)]"
             >
-              Ver Planos <ArrowRight size={15} />
+              Ver Metas <ArrowRight size={15} />
             </motion.a>
           </div>
 
