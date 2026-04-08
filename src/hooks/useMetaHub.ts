@@ -66,6 +66,16 @@ export interface MetaStatusLog   { id: string; statusAnterior: string; statusNov
 export interface DocumentoLog    { id: string; acao: string; detalhes?: string; criadoEm: string; userNome: string; userEmail: string; }
 export interface UserRoleLog     { id: string; roleAnterior: string; roleNova: string; criadoEm: string; changedByNome: string; changedByEmail: string; }
 
+export interface NotificacaoPayload {
+  id:       string;
+  titulo:   string;
+  mensagem: string;
+  tipo:     string;
+  link:     string | null;
+  lida:     boolean;
+  criadoEm: string;
+}
+
 interface UseMetaHubOptions {
   onMetaStatusChanged?:      (payload: MetaStatusChangedPayload) => void;
   onMetaCreated?:            (payload: MetaCreatedPayload) => void;
@@ -75,6 +85,7 @@ interface UseMetaHubOptions {
   onMetaStatusLogged?:       (payload: MetaStatusLoggedPayload) => void;
   onTopicoDocumentLogged?:   (payload: TopicoDocumentLoggedPayload) => void;
   onUserRoleLogged?:         (payload: UserRoleLoggedPayload) => void;
+  onNotificacaoRecebida?:    (payload: NotificacaoPayload) => void;
 }
 
 // Module-level variables to share connection across remounts (fixes double/triple /negotiate in dev)
@@ -91,15 +102,17 @@ export function useMetaHub({
   onMetaStatusLogged,
   onTopicoDocumentLogged,
   onUserRoleLogged,
+  onNotificacaoRecebida,
 }: UseMetaHubOptions) {
-  const onStatusRef          = useRef(onMetaStatusChanged);
-  const onCreatedRef         = useRef(onMetaCreated);
-  const onDocAddedRef        = useRef(onTopicoDocumentAdded);
-  const onDocRemovedRef      = useRef(onTopicoDocumentRemoved);
-  const onDocUpdatedRef      = useRef(onTopicoDocumentUpdated);
-  const onMetaLoggedRef      = useRef(onMetaStatusLogged);
-  const onDocLoggedRef       = useRef(onTopicoDocumentLogged);
-  const onUserRoleLoggedRef  = useRef(onUserRoleLogged);
+  const onStatusRef            = useRef(onMetaStatusChanged);
+  const onCreatedRef           = useRef(onMetaCreated);
+  const onDocAddedRef          = useRef(onTopicoDocumentAdded);
+  const onDocRemovedRef        = useRef(onTopicoDocumentRemoved);
+  const onDocUpdatedRef        = useRef(onTopicoDocumentUpdated);
+  const onMetaLoggedRef        = useRef(onMetaStatusLogged);
+  const onDocLoggedRef         = useRef(onTopicoDocumentLogged);
+  const onUserRoleLoggedRef    = useRef(onUserRoleLogged);
+  const onNotificacaoRef       = useRef(onNotificacaoRecebida);
 
   useEffect(() => { onStatusRef.current         = onMetaStatusChanged;     }, [onMetaStatusChanged]);
   useEffect(() => { onCreatedRef.current        = onMetaCreated;           }, [onMetaCreated]);
@@ -109,6 +122,7 @@ export function useMetaHub({
   useEffect(() => { onMetaLoggedRef.current     = onMetaStatusLogged;      }, [onMetaStatusLogged]);
   useEffect(() => { onDocLoggedRef.current      = onTopicoDocumentLogged;  }, [onTopicoDocumentLogged]);
   useEffect(() => { onUserRoleLoggedRef.current = onUserRoleLogged;        }, [onUserRoleLogged]);
+  useEffect(() => { onNotificacaoRef.current    = onNotificacaoRecebida;   }, [onNotificacaoRecebida]);
 
   useEffect(() => {
     subscribers++;
@@ -142,6 +156,7 @@ export function useMetaHub({
     const handleMetaLogged  = (p: MetaStatusLoggedPayload)        => onMetaLoggedRef.current?.(p);
     const handleDocLogged   = (p: TopicoDocumentLoggedPayload)    => onDocLoggedRef.current?.(p);
     const handleRoleLogged  = (p: UserRoleLoggedPayload)          => onUserRoleLoggedRef.current?.(p);
+    const handleNotificacao = (p: NotificacaoPayload)             => onNotificacaoRef.current?.(p);
 
     globalConnection.on("metaStatusChanged",     handleStatus);
     globalConnection.on("metaCreated",           handleCreated);
@@ -151,6 +166,7 @@ export function useMetaHub({
     globalConnection.on("metaStatusLogged",      handleMetaLogged);
     globalConnection.on("topicoDocumentLogged",  handleDocLogged);
     globalConnection.on("userRoleLogged",        handleRoleLogged);
+    globalConnection.on("notificacaoRecebida",   handleNotificacao);
 
     return () => {
       if (globalConnection) {
@@ -162,6 +178,7 @@ export function useMetaHub({
         globalConnection.off("metaStatusLogged",      handleMetaLogged);
         globalConnection.off("topicoDocumentLogged",  handleDocLogged);
         globalConnection.off("userRoleLogged",        handleRoleLogged);
+        globalConnection.off("notificacaoRecebida",   handleNotificacao);
       }
 
       subscribers--;

@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 
 export default function DashboardRoute() {
-  return <DashboardPage />;
+  return (
+    <Suspense>
+      <DashboardPage />
+    </Suspense>
+  );
 }

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { TemasView } from "./TemasView";
 import { UsuariosView } from "./UsuariosView";
 import { MarcosView } from "./MarcosView";
 import { SetoresView } from "./SetoresView";
 import { TicketWidget } from "./TicketWidget";
+import { NotificationBell } from "./NotificationBell";
+import { useMetaHub } from "@/hooks/useMetaHub";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Users, Home, LogOut, ChevronRight,
@@ -28,7 +31,25 @@ const ROLE_BADGE: Record<Role, { label: string; color: string }> = {
 
 export function DashboardPage() {
   const { user, logout } = useAuth();
-  const [view, setView]  = useState<View>("temas");
+  const searchParams = useSearchParams();
+  const [view, setView]         = useState<View>("temas");
+  const [targetTopicoId, setTargetTopicoId] = useState<string | undefined>(
+    searchParams.get("topicoId") ?? undefined
+  );
+
+  // Limpa o query param da URL sem recarregar a página (para não persistir após navegação)
+  useEffect(() => {
+    const tid = searchParams.get("topicoId");
+    if (!tid) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("topicoId");
+    window.history.replaceState({}, "", url.toString());
+  }, [searchParams]);
+  const bellRef          = useCallback((p: import("@/hooks/useMetaHub").NotificacaoPayload) => {
+    (NotificationBell as { _handler?: (payload: typeof p) => void })._handler?.(p);
+  }, []);
+
+  useMetaHub({ onNotificacaoRecebida: bellRef });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (!user) return null;
@@ -146,7 +167,10 @@ export function DashboardPage() {
           </button>
           <LayoutDashboard size={18} className="text-primary hidden md:block" />
           <h1 className="text-base font-semibold text-foreground">Dashboard</h1>
-          <div className="ml-auto text-xs text-muted-foreground hidden sm:block">Plano de Ação 2026</div>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:block">Plano de Ação 2026</span>
+            <NotificationBell onNavigate={(view, topicoId) => { setView(view as View); setTargetTopicoId(topicoId); }} />
+          </div>
         </div>
 
         {/* View */}
@@ -157,7 +181,7 @@ export function DashboardPage() {
           transition={{ duration: 0.25 }}
           className="p-4 md:p-8"
         >
-          {view === "temas"    && <TemasView />}
+          {view === "temas"    && <TemasView targetTopicoId={targetTopicoId} />}
           {view === "setores"  && isAdmin && <SetoresView />}
           {view === "marcos"   && isAdmin && <MarcosView />}
           {view === "usuarios" && isAdmin && <UsuariosView />}

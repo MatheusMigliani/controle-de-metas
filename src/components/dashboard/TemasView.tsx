@@ -309,11 +309,12 @@ interface TopicoCardProps {
   onDocumentsChange: (topicoId: string, docs: TopicoDocumento[]) => void;
   liveDocLogs:       Map<string, DocumentoLog>;
   liveMetaLogs:      Map<string, MetaStatusLog>;
+  defaultExpanded?:  boolean;
 }
 
-function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs }: TopicoCardProps) {
+function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs, defaultExpanded }: TopicoCardProps) {
   const { user } = useAuth();
-  const [expanded, setExpanded]         = useState(false);
+  const [expanded, setExpanded]         = useState(defaultExpanded ?? false);
   const [hasFetched, setHasFetched]     = useState(false);
   const [docLoading, setDocLoading]     = useState(false);
   const [isUploading, setIsUploading]   = useState(false);
@@ -1169,7 +1170,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
 
 // ── TemasView (main) ──────────────────────────────────────────────────────────
 
-export function TemasView() {
+export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
   const { user } = useAuth();
   const [temas, setTemas]       = useState<Tema[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -1177,6 +1178,13 @@ export function TemasView() {
   const [liveStatuses, setLiveStatuses]       = useState<Map<string, MetaStatus>>(new Map());
   const [topicoDocumentos, setTopicoDocumentos] = useState<Map<string, TopicoDocumento[]>>(new Map());
   const [hubConnected, setHubConnected] = useState(false);
+
+  // Auto-expand tema + tópico when navigating from a notification/email link
+  useEffect(() => {
+    if (!targetTopicoId || temas.length === 0) return;
+    const tema = temas.find((t) => t.topicos.some((tp) => tp.id === targetTopicoId));
+    if (tema) setExpanded(tema.id);
+  }, [targetTopicoId, temas]);
 
   // New Theme state
   const [isTemaDialogOpen, setIsTemaDialogOpen] = useState(false);
@@ -1630,6 +1638,7 @@ export function TemasView() {
                         onDocumentsChange={handleDocumentsChange}
                         liveDocLogs={liveDocLogs}
                         liveMetaLogs={liveMetaLogs}
+                        defaultExpanded={t.id === targetTopicoId}
                         onAddMeta={(id) => {
                           setSelectedTopicoId(id);
                           setIsMetaDialogOpen(true);

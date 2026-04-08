@@ -123,6 +123,18 @@ export interface ApiMarco {
   updatedAt: string;
 }
 
+// ── Notificações ──────────────────────────────────────────────────────────────
+
+export interface ApiNotificacao {
+  id:        string;
+  titulo:    string;
+  mensagem:  string;
+  tipo:      string;
+  link:      string | null;
+  lida:      boolean;
+  criadoEm: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
