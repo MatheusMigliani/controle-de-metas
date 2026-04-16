@@ -103,8 +103,8 @@ export function TicketWidget() {
     if (!user?.token) return;
     setLoading(true);
 
-    const systemId  = window.__ENV__?.NEXT_PUBLIC_SYSTEM_ID  || process.env['NEXT_PUBLIC_SYSTEM_ID'];
-    const supportApi = window.__ENV__?.NEXT_PUBLIC_SUPPORT_API || process.env['NEXT_PUBLIC_SUPPORT_API'];
+    const systemId  = window.__ENV__?.NEXT_PUBLIC_METAS_SYSTEM_ID  || process.env['NEXT_PUBLIC_METAS_SYSTEM_ID'];
+    const supportApi = window.__ENV__?.NEXT_PUBLIC_METAS_SUPPORT_API || process.env['NEXT_PUBLIC_METAS_SUPPORT_API'];
     
     try {
       const url = `${supportApi}/Ticket?Page=1&PageSize=50&UserId=${user.userId}&SystemId=${systemId}`;
@@ -141,7 +141,7 @@ export function TicketWidget() {
     
     setCreating(true);
     try {
-      const supportApi = window.__ENV__?.NEXT_PUBLIC_SUPPORT_API || process.env['NEXT_PUBLIC_SUPPORT_API'];
+      const supportApi = window.__ENV__?.NEXT_PUBLIC_METAS_SUPPORT_API || process.env['NEXT_PUBLIC_METAS_SUPPORT_API'];
       const res = await fetch(`${supportApi}/Ticket`, {
         method: "POST",
         headers: {
@@ -149,9 +149,9 @@ export function TicketWidget() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          systemId: window.__ENV__?.NEXT_PUBLIC_SYSTEM_ID || process.env['NEXT_PUBLIC_SYSTEM_ID'],
+          systemId: window.__ENV__?.NEXT_PUBLIC_METAS_SYSTEM_ID || process.env['NEXT_PUBLIC_METAS_SYSTEM_ID'],
           systemName: "Controle de Metas",
-          categoryDiscordId: window.__ENV__?.NEXT_PUBLIC_DISCORD_CATEGORY_ID || process.env['NEXT_PUBLIC_DISCORD_CATEGORY_ID'],
+          categoryDiscordId: window.__ENV__?.NEXT_PUBLIC_METAS_DISCORD_CATEGORY_ID || process.env['NEXT_PUBLIC_METAS_DISCORD_CATEGORY_ID'],
           userId: user?.userId,
           username: user?.name,
           title,

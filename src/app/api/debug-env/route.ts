@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 // Access via: http://subg:7000/api/debug-env
 export async function GET() {
   const keys = [
-    "NEXT_PUBLIC_AUTH_API",
+    "NEXT_PUBLIC_METAS_AUTH_API",
     "NEXT_PUBLIC_METAS_API",
-    "NEXT_PUBLIC_SUPPORT_API",
-    "NEXT_PUBLIC_SYSTEMS_API",
-    "NEXT_PUBLIC_SYSTEM_ID",
-    "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
-    "NEXT_PUBLIC_DISCORD_CATEGORY_ID",
+    "NEXT_PUBLIC_METAS_SUPPORT_API",
+    "NEXT_PUBLIC_METAS_SYSTEMS_API",
+    "NEXT_PUBLIC_METAS_SYSTEM_ID",
+    "NEXT_PUBLIC_METAS_GOOGLE_CLIENT_ID",
+    "NEXT_PUBLIC_METAS_DISCORD_CATEGORY_ID",
   ];
 
   const env: Record<string, string | undefined> = {};

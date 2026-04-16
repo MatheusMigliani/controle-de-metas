@@ -13,7 +13,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <GoogleOAuthProvider clientId={(typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_GOOGLE_CLIENT_ID) || process.env['NEXT_PUBLIC_GOOGLE_CLIENT_ID'] || ""}>
+    <GoogleOAuthProvider clientId={(typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_METAS_GOOGLE_CLIENT_ID) || process.env['NEXT_PUBLIC_METAS_GOOGLE_CLIENT_ID'] || ""}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <TooltipProvider>

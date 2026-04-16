@@ -71,8 +71,8 @@ function runtimeEnv(key: string): string | undefined {
 // ── API login call (plain fetch — before Axios is configured) ─────────────────
 
 export async function loginWithGoogle(idToken: string): Promise<AuthUser> {
-  const base = (typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_AUTH_API)
-    || runtimeEnv('NEXT_PUBLIC_AUTH_API');
+  const base = (typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_METAS_AUTH_API)
+    || runtimeEnv('NEXT_PUBLIC_METAS_AUTH_API');
   const res  = await fetch(`${base}/auth/google`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },

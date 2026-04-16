@@ -5,13 +5,13 @@ import { getToken, clearAuth } from "@/lib/auth";
 declare global {
   interface Window {
     __ENV__: {
-      NEXT_PUBLIC_AUTH_API?: string;
+      NEXT_PUBLIC_METAS_AUTH_API?: string;
       NEXT_PUBLIC_METAS_API?: string;
-      NEXT_PUBLIC_SUPPORT_API?: string;
-      NEXT_PUBLIC_SYSTEMS_API?: string;
-      NEXT_PUBLIC_SYSTEM_ID?: string;
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID?: string;
-      NEXT_PUBLIC_DISCORD_CATEGORY_ID?: string;
+      NEXT_PUBLIC_METAS_SUPPORT_API?: string;
+      NEXT_PUBLIC_METAS_SYSTEMS_API?: string;
+      NEXT_PUBLIC_METAS_SYSTEM_ID?: string;
+      NEXT_PUBLIC_METAS_GOOGLE_CLIENT_ID?: string;
+      NEXT_PUBLIC_METAS_DISCORD_CATEGORY_ID?: string;
     };
   }
 }
@@ -32,8 +32,8 @@ api.defaults.headers.patch["Content-Type"]  = "application/json";
 // ── Request: define baseURL dinamicamente + injeta token ─────────────────────
 api.interceptors.request.use((config) => {
   const base =
-    (typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_AUTH_API) ||
-    runtimeEnv('NEXT_PUBLIC_AUTH_API') ||
+    (typeof window !== "undefined" && window.__ENV__?.NEXT_PUBLIC_METAS_AUTH_API) ||
+    runtimeEnv('NEXT_PUBLIC_METAS_AUTH_API') ||
     "";
 
   if (!config.baseURL) {
