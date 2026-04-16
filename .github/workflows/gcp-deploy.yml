@@ -8,8 +8,8 @@ on:
 env:
   PROJECT_ID: rj-sms-subg
   REGION: us-central1
-  REGISTRY: us-central1-docker.pkg.dev/rj-sms-subg/controle-de-metas
-  SERVICE_NAME: controle-de-metas-staging
+  REGISTRY: us-central1-docker.pkg.dev/rj-sms-subg/controle-metas
+  SERVICE_NAME: controle-metas-staging
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
 
       - name: Define image tag
         id: meta
-        run: echo "image=${{ env.REGISTRY }}/controle-de-metas:staging-${{ github.sha }}" >> $GITHUB_OUTPUT
+        run: echo "image=${{ env.REGISTRY }}/controle-metas:staging-${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Build & Push Image
         uses: docker/build-push-action@v6
@@ -48,7 +48,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/controle-de-metas:staging
+            ${{ env.REGISTRY }}/controle-metas:staging
             ${{ steps.meta.outputs.image }}
           cache-from: type=gha,scope=gcp-metas
           cache-to: type=gha,mode=max,scope=gcp-metas
