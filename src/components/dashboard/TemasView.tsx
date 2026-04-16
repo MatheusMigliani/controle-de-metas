@@ -102,10 +102,15 @@ const META_STATUS_ENUM: Record<MetaStatus, number> = {
 function MetaCard({ meta, liveStatus, liveLog }: { meta: Meta; liveStatus?: MetaStatus; liveLog?: MetaStatusLog }) {
   const { user } = useAuth();
   const [status, setStatus]           = useState<MetaStatus>(meta.status);
+  const [approvedAt, setApprovedAt]   = useState<string | null>(meta.approvedAt);
   const [loading, setLoading]         = useState(false);
   const [logsOpen, setLogsOpen]       = useState(false);
   const [logs, setLogs]               = useState<MetaStatusLog[] | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
+  // Modal de aprovação/devolução (exige comentário)
+  const [approvalAction, setApprovalAction] = useState<"Concluido" | "AguardandoRetorno" | null>(null);
+  const [approvalComment, setApprovalComment] = useState("");
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
   const canViewHistory = user?.role === "Admin" || user?.role === "Aprovador";
 
   // Append live log when SignalR pushes a new entry
@@ -131,6 +136,13 @@ function MetaCard({ meta, liveStatus, liveLog }: { meta: Meta; liveStatus?: Meta
 
   async function handleStatusChange(newStatus: MetaStatus) {
     if (newStatus === status) return;
+    // Aprovação/devolução exige comentário e usa endpoints dedicados
+    // (que registram approvedByUserId, approvedAt e o comentário do aprovador)
+    if (newStatus === "Concluido" || newStatus === "AguardandoRetorno") {
+      setApprovalAction(newStatus);
+      setApprovalComment("");
+      return;
+    }
     setLoading(true);
     try {
       await api.patch(`/metas/${meta.id}/status`, { status: META_STATUS_ENUM[newStatus] });
@@ -140,6 +152,27 @@ function MetaCard({ meta, liveStatus, liveLog }: { meta: Meta; liveStatus?: Meta
       toast.error("Erro ao atualizar o status.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitApproval() {
+    if (!approvalAction || !approvalComment.trim()) return;
+    setIsSubmittingApproval(true);
+    const route = approvalAction === "Concluido" ? "approve" : "return";
+    try {
+      const r = await api.post<{ data: Meta }>(
+        `/metas/${meta.id}/${route}`,
+        { Comment: approvalComment.trim() }
+      );
+      setStatus(r.data.data.status);
+      setApprovedAt(r.data.data.approvedAt);
+      toast.success(approvalAction === "Concluido" ? "Meta aprovada." : "Meta devolvida para revisão.");
+      setApprovalAction(null);
+      setApprovalComment("");
+    } catch {
+      toast.error("Erro ao registrar a decisão.");
+    } finally {
+      setIsSubmittingApproval(false);
     }
   }
 
@@ -160,10 +193,10 @@ function MetaCard({ meta, liveStatus, liveLog }: { meta: Meta; liveStatus?: Meta
         <Target size={14} className="text-primary mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground leading-snug">{meta.descricao}</p>
-          {(status === "Concluido" || status === "AguardandoRetorno") && meta.approvedAt && (
+          {(status === "Concluido" || status === "AguardandoRetorno") && approvedAt && (
             <p className="text-[10px] text-muted-foreground mt-1">
               {status === "Concluido" ? "Aprovado" : "Devolvido"} em{" "}
-              {new Date(meta.approvedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              {new Date(approvedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
             </p>
           )}
           <div className="flex items-center gap-2 mt-2 flex-wrap relative">
@@ -227,6 +260,33 @@ function MetaCard({ meta, liveStatus, liveLog }: { meta: Meta; liveStatus?: Meta
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Dialog open={approvalAction !== null} onOpenChange={(o) => { if (!o) { setApprovalAction(null); setApprovalComment(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {approvalAction === "Concluido" ? "Aprovar meta" : "Devolver meta para revisão"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{meta.descricao}</p>
+            <Textarea
+              placeholder={approvalAction === "Concluido" ? "Comentário da aprovação (obrigatório)" : "Motivo da devolução (obrigatório)"}
+              value={approvalComment}
+              onChange={(e) => setApprovalComment(e.target.value)}
+              rows={4}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setApprovalAction(null); setApprovalComment(""); }}>Cancelar</Button>
+            <Button onClick={submitApproval} disabled={isSubmittingApproval || !approvalComment.trim()}>
+              {isSubmittingApproval && <Loader2 size={14} className="animate-spin mr-2" />}
+              {approvalAction === "Concluido" ? "Aprovar" : "Devolver"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -387,6 +447,10 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       toast.error("Formato inválido. Apenas .doc, .docx e .pdf são permitidos.");
       return;
     }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("O arquivo excede o tamanho máximo de 50 MB.");
+      return;
+    }
     setIsUploading(true);
     setDraggedFile(null);
     if (!expanded) setExpanded(true);
@@ -421,6 +485,11 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       if (reuploadInputRef.current) reuploadInputRef.current.value = "";
       return;
     }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("O arquivo excede o tamanho máximo de 50 MB.");
+      if (reuploadInputRef.current) reuploadInputRef.current.value = "";
+      return;
+    }
     setReuploadingId(docId);
     const formData = new FormData();
     formData.append("file", file);
@@ -441,6 +510,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
 
   const ALLOWED_STAGING_EXTS  = [".doc", ".docx", ".pdf"];
   const ALLOWED_OFFICIAL_EXTS = [".pdf"];
+  const MAX_FILE_SIZE         = 50 * 1024 * 1024; // 50 MB — alinhado com backend
   const getExt = (name: string) => name.slice(name.lastIndexOf(".")).toLowerCase();
   const isPdf  = (name: string) => getExt(name) === ".pdf";
 
@@ -482,6 +552,10 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
     if (!approvalDocId || !approvalFile) return;
     if (!ALLOWED_OFFICIAL_EXTS.includes(getExt(approvalFile.name))) {
       toast.error("A pasta oficial aceita apenas arquivos .pdf.");
+      return;
+    }
+    if (approvalFile.size > MAX_FILE_SIZE) {
+      toast.error("O arquivo excede o tamanho máximo de 50 MB.");
       return;
     }
     setIsApproving(true);
