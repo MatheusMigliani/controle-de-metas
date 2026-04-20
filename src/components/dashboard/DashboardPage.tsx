@@ -23,18 +23,18 @@ import { Role } from "@/lib/auth";
 type View = "temas" | "usuarios" | "marcos" | "setores" | "integracoes";
 
 const ROLE_BADGE: Record<Role, { label: string; color: string }> = {
-  Pending:      { label: "Pendente",     color: "bg-amber-400/15 text-amber-400 border-amber-400/20" },
+  Pending: { label: "Pendente", color: "bg-amber-400/15 text-amber-400 border-amber-400/20" },
   Visualizador: { label: "Visualizador", color: "bg-sky-400/15 text-sky-400 border-sky-400/20" },
-  Analista:     { label: "Analista",     color: "bg-violet-400/15 text-violet-400 border-violet-400/20" },
-  Aprovador:    { label: "Aprovador",    color: "bg-emerald-400/15 text-emerald-400 border-emerald-400/20" },
-  Admin:        { label: "Admin",        color: "bg-rose-400/15 text-rose-400 border-rose-400/20" },
+  Analista: { label: "Analista", color: "bg-violet-400/15 text-violet-400 border-violet-400/20" },
+  Aprovador: { label: "Aprovador", color: "bg-emerald-400/15 text-emerald-400 border-emerald-400/20" },
+  Admin: { label: "Admin", color: "bg-rose-400/15 text-rose-400 border-rose-400/20" },
 };
 
 export function DashboardPage() {
   const { user, logout } = useAuth();
   const searchParams = useSearchParams();
   const initialView = (searchParams.get("view") as View) || "temas";
-  const [view, setView]         = useState<View>(initialView);
+  const [view, setView] = useState<View>(initialView);
   const [targetTopicoId, setTargetTopicoId] = useState<string | undefined>(
     searchParams.get("topicoId") ?? undefined
   );
@@ -42,15 +42,15 @@ export function DashboardPage() {
   // Limpa os query params da URL sem recarregar a página (para não persistir após navegação).
   // `google_drive` é preservado aqui e consumido dentro da IntegracoesView (toast de sucesso).
   useEffect(() => {
-    const tid  = searchParams.get("topicoId");
-    const v    = searchParams.get("view");
+    const tid = searchParams.get("topicoId");
+    const v = searchParams.get("view");
     if (!tid && !v) return;
     const url = new URL(window.location.href);
     url.searchParams.delete("topicoId");
     url.searchParams.delete("view");
     window.history.replaceState({}, "", url.toString());
   }, [searchParams]);
-  const bellRef          = useCallback((p: import("@/hooks/useMetaHub").NotificacaoPayload) => {
+  const bellRef = useCallback((p: import("@/hooks/useMetaHub").NotificacaoPayload) => {
     (NotificationBell as { _handler?: (payload: typeof p) => void })._handler?.(p);
   }, []);
 
@@ -59,24 +59,24 @@ export function DashboardPage() {
 
   if (!user) return null;
 
-  const badge      = ROLE_BADGE[user.role];
+  const badge = ROLE_BADGE[user.role];
   const canSeeData = user.role !== "Pending";
-  const isAdmin    = user.role === "Admin";
+  const isAdmin = user.role === "Admin";
 
   const navLinks: { id: View; label: string; icon: React.ReactNode; visible: boolean }[] = [
-    { id: "temas",       label: "Metas & Tópicos", icon: <Target size={16} />,    visible: canSeeData },
-    { id: "setores",     label: "Setores",         icon: <Building2 size={16} />, visible: isAdmin },
-    { id: "marcos",      label: "Marcos",          icon: <Flag size={16} />,      visible: isAdmin },
-    { id: "usuarios",    label: "Usuários",        icon: <Users size={16} />,     visible: isAdmin },
-    { id: "integracoes", label: "Integrações",     icon: <Plug size={16} />,      visible: isAdmin },
+    { id: "temas", label: "Metas & Tópicos", icon: <Target size={16} />, visible: canSeeData },
+    { id: "setores", label: "Setores", icon: <Building2 size={16} />, visible: isAdmin },
+    { id: "marcos", label: "Marcos", icon: <Flag size={16} />, visible: isAdmin },
+    { id: "usuarios", label: "Usuários", icon: <Users size={16} />, visible: isAdmin },
+    { id: "integracoes", label: "Integrações", icon: <Plug size={16} />, visible: isAdmin },
   ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* ── Mobile Overlay ── */}
       {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm" 
+        <div
+          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -125,11 +125,10 @@ export function DashboardPage() {
             <button
               key={link.id}
               onClick={() => { setView(link.id); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
-                view === link.id
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${view === link.id
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5"
-              }`}
+                }`}
             >
               {link.icon}
               {link.label}
@@ -156,8 +155,6 @@ export function DashboardPage() {
         <div className="px-4 pb-4 flex items-center gap-2 opacity-40">
           <Image src="/brand/logoazul.png" alt="SMS" width={60} height={18} className="block dark:hidden object-contain" />
           <Image src="/brand/logobranca.png" alt="SMS" width={60} height={18} className="hidden dark:block object-contain" />
-          <div className="w-px h-4 bg-border/50" />
-          <Image src="/brand/tcmrio-logo.png" alt="TCMRio" width={48} height={14} className="object-contain" />
         </div>
       </aside>
 
@@ -165,7 +162,7 @@ export function DashboardPage() {
       <main className="flex-1 overflow-auto w-full min-w-0">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-border/50 px-4 md:px-8 py-3 md:py-4 flex items-center gap-3">
-          <button 
+          <button
             className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={() => setIsMobileMenuOpen(true)}
           >
@@ -187,14 +184,14 @@ export function DashboardPage() {
           transition={{ duration: 0.25 }}
           className="p-4 md:p-8"
         >
-          {view === "temas"       && <TemasView targetTopicoId={targetTopicoId} />}
-          {view === "setores"     && isAdmin && <SetoresView />}
-          {view === "marcos"      && isAdmin && <MarcosView />}
-          {view === "usuarios"    && isAdmin && <UsuariosView />}
+          {view === "temas" && <TemasView targetTopicoId={targetTopicoId} />}
+          {view === "setores" && isAdmin && <SetoresView />}
+          {view === "marcos" && isAdmin && <MarcosView />}
+          {view === "usuarios" && isAdmin && <UsuariosView />}
           {view === "integracoes" && isAdmin && <IntegracoesView />}
         </motion.div>
       </main>
-      
+
       {/* ── Support Widget ────────────────────────────────────────────────── */}
       <TicketWidget />
     </div>
