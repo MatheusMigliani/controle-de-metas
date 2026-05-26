@@ -9,6 +9,7 @@ import { MarcosSection } from "@/components/MarcosSection";
 import { PlanosSection } from "@/components/PlanosSection";
 import { TemporalSection } from "@/components/TemporalSection";
 import { FooterSection } from "@/components/FooterSection";
+import { NewsletterSection } from "@/components/NewsletterSection";
 import { BackToTop } from "@/components/ui/BackToTop";
 
 const S = "white";
@@ -342,6 +343,7 @@ const Landing = () => {
         <MarcosSection />
         <PlanosSection />
         {/* <TemporalSection /> */}
+        <NewsletterSection />
         <FooterSection />
       </div>
     </div>

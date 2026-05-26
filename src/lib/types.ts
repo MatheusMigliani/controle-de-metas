@@ -142,6 +142,16 @@ export interface ApiResponse<T> {
   error: string | null;
 }
 
+// ── Newsletter ───────────────────────────────────────────────────────────────
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  nome: string;
+  ativo: boolean;
+  criadoEm: string;
+}
+
 export const META_STATUS_CONFIG: Record<MetaStatus, { label: string; color: string; bg: string; dot: string }> = {
   NaoIniciada:       { label: "Não Iniciada",      color: "text-white/40",    bg: "bg-white/[0.06] border-white/10",         dot: "bg-white/30" },
   EmAndamento:       { label: "Em Andamento",       color: "text-yellow-300",  bg: "bg-yellow-300/10 border-yellow-300/20",   dot: "bg-yellow-300" },

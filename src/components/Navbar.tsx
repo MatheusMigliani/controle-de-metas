@@ -6,7 +6,8 @@ import Image from "next/image";
 import {
   LayoutList, CheckCircle2, Clock3, FileCheck2,
   BarChart3, Calendar, LayoutDashboard, Home, LogOut, ChevronDown,
-  Menu, X, Flag, Milestone, BarChart2, CalendarDays, Target,
+  Menu, X, Flag, Milestone, BarChart2, CalendarDays, Target, Mail,
+  Layers, FileText, Send,
 } from "lucide-react";
 import { planos, etapas, marcos } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +17,11 @@ import { NavLink } from "./NavLink";
 
 
 const navItems = [
-  { id: "hero",       label: "Início",     icon: Home },
-  { id: "panorama",   label: "Panorama",   icon: LayoutList },
-  { id: "marcos",     label: "Marcos",     icon: Milestone },
-  { id: "temas",      label: "Temas",      icon: Target },
+  { id: "hero",       label: "Início",      icon: Home },
+  { id: "panorama",   label: "Panorama",    icon: LayoutList },
+  { id: "marcos",     label: "Marcos",      icon: Milestone },
+  { id: "temas",      label: "Temas",       icon: Target },
+  { id: "newsletter", label: "Newsletter",  icon: Mail },
 ];
 
 const ROLE_BADGE: Record<string, { label: string; color: string }> = {
@@ -150,9 +152,76 @@ function DropdownCalendario() {
   );
 }
 
+function DropdownTemas() {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10 shrink-0">
+          <Layers size={16} className="text-primary" />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold text-foreground">
+            Temas & Planos de Ação
+          </span>
+          <span className="text-[11px] text-muted-foreground leading-relaxed">
+            Explore os temas estratégicos, tópicos e o progresso dos objetivos em cada área.
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mt-1">
+        {[
+          { icon: Target, label: "Tópicos", desc: "Objetivos por tema" },
+          { icon: FileText, label: "Documentos", desc: "Comprobatórios oficiais" },
+        ].map(({ icon: Icon, label, desc }) => (
+          <div key={label} className="flex flex-col items-start gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5">
+            <Icon size={13} className="text-primary" />
+            <span className="text-[11px] font-semibold text-foreground leading-none">{label}</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">{desc}</span>
+          </div>
+        ))}
+      </div>
+      <a href="#temas" className="text-[11px] text-primary font-medium hover:underline mt-1">Ver todos os temas →</a>
+    </div>
+  );
+}
+
+function DropdownNewsletter() {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10 shrink-0">
+          <Mail size={16} className="text-primary" />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold text-foreground">
+            Newsletter
+          </span>
+          <span className="text-[11px] text-muted-foreground leading-relaxed">
+            Receba resumos dos documentos aprovados diretamente no seu e-mail.
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5 mt-1">
+        {[
+          { icon: FileText, text: "Resumo de documentos oficiais" },
+          { icon: Send, text: "Envio automático e periódico" },
+        ].map(({ icon: Icon, text }) => (
+          <div key={text} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Icon size={11} className="text-primary/60 shrink-0" />
+            {text}
+          </div>
+        ))}
+      </div>
+      <a href="#newsletter" className="text-[11px] text-primary font-medium hover:underline mt-1">Inscrever-se →</a>
+    </div>
+  );
+}
+
 const dropdownContent: Record<string, React.ComponentType> = {
   panorama: DropdownPanorama,
   marcos: DropdownMarcos,
+  temas: DropdownTemas,
+  newsletter: DropdownNewsletter,
 };
 
 // ── User Card Dropdown ────────────────────────────────────────────────────────

@@ -8,19 +8,20 @@ import { UsuariosView } from "./UsuariosView";
 import { MarcosView } from "./MarcosView";
 import { SetoresView } from "./SetoresView";
 import { IntegracoesView } from "./IntegracoesView";
+import { NewsletterView } from "./NewsletterView";
 import { TicketWidget } from "./TicketWidget";
 import { NotificationBell } from "./NotificationBell";
 import { useMetaHub } from "@/hooks/useMetaHub";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Users, Home, LogOut, ChevronRight,
-  BarChart3, Target, Flag, Building2, Menu, Plug
+  BarChart3, Target, Flag, Building2, Menu, Plug, Mail
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Role } from "@/lib/auth";
 
-type View = "temas" | "usuarios" | "marcos" | "setores" | "integracoes";
+type View = "temas" | "usuarios" | "marcos" | "setores" | "integracoes" | "newsletter";
 
 const ROLE_BADGE: Record<Role, { label: string; color: string }> = {
   Pending: { label: "Pendente", color: "bg-amber-400/15 text-amber-400 border-amber-400/20" },
@@ -69,6 +70,7 @@ export function DashboardPage() {
     { id: "marcos", label: "Marcos", icon: <Flag size={16} />, visible: isAdmin },
     { id: "usuarios", label: "Usuários", icon: <Users size={16} />, visible: isAdmin },
     { id: "integracoes", label: "Integrações", icon: <Plug size={16} />, visible: isAdmin },
+    { id: "newsletter", label: "Newsletter", icon: <Mail size={16} />, visible: isAdmin },
   ];
 
   return (
@@ -189,6 +191,7 @@ export function DashboardPage() {
           {view === "marcos" && isAdmin && <MarcosView />}
           {view === "usuarios" && isAdmin && <UsuariosView />}
           {view === "integracoes" && isAdmin && <IntegracoesView />}
+          {view === "newsletter" && isAdmin && <NewsletterView />}
         </motion.div>
       </main>
 
