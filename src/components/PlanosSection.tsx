@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import * as Accordion from "@radix-ui/react-accordion";
@@ -9,102 +9,80 @@ import {
   type ApiTema,
   type ApiTopico,
   type MetaStatus,
-  type EtapaStatus,
-  type PlanoDeAcao,
-  type Etapa,
+  type DocumentoPublico,
   META_STATUS_CONFIG,
-  STATUS_LIST,
 } from "@/lib/types";
-
-const ETAPA_STATUS_DOT: Record<string, string> = {
-  "Não Iniciada": "bg-white/30",
-  "Em Andamento": "bg-yellow-300",
-  "Concluída": "bg-emerald-400",
-  "Documento Gerado": "bg-[#42b9eb]",
-  "Aguardando retorno da área": "bg-orange-400",
-};
-import { StatusBadge } from "./StatusBadge";
 import { AnimatedCounter } from "./AnimatedCounter";
 import SpotlightCard from "@/components/SpotlightCard";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ExternalLink,
-  ChevronRight,
   ChevronDown,
   Users,
-  Target,
   LayoutGrid,
   Layers,
   X,
-  ChevronsUpDown,
   Search,
   FileText,
+  ArrowDownUp,
 } from "lucide-react";
 
-// ── Constantes ────────────────────────────────────────────────────────────────
-
-const PAGE_SIZE = 10;
-
 // ── Utilitários ───────────────────────────────────────────────────────────────
-
-function mapStatus(apiStatus: string): EtapaStatus {
-  const map: Record<string, EtapaStatus> = {
-    NaoIniciada: "Não Iniciada",
-    EmAndamento: "Em Andamento",
-    Concluida: "Concluída",
-    DocumentoGerado: "Documento Gerado",
-    AguardandoRetorno: "Aguardando retorno da área",
-  };
-  return map[apiStatus] ?? "Não Iniciada";
-}
-
-function temaToPlano(tema: ApiTema, index: number): PlanoDeAcao {
-  return {
-    id: tema.id,
-    code: "PA" + String(index + 1).padStart(2, "0"),
-    title: tema.nome.replace(/ \(.*\)$/, ""),
-    description: tema.topicos[0]?.descricao ?? "—",
-    area:
-      [...new Set(tema.topicos.flatMap((t) => t.setorNomes).filter(Boolean))].join(", ") || "—",
-    created_at: tema.createdAt,
-  };
-}
-
-function temaToEtapas(tema: ApiTema, code: string): Etapa[] {
-  const etapas: Etapa[] = [];
-  let stepIndex = 0;
-  for (const topico of tema.topicos) {
-    for (const meta of topico.metas) {
-      etapas.push({
-        id: meta.id,
-        plan_id: tema.id,
-        topico_id: topico.id,
-        step_number: stepIndex + 1,
-        description: meta.descricao,
-        tema: topico.descricao,
-        relacao_direta: code,
-        area: topico.setorNomes.join(", ") || "—",
-        areas: topico.setorNomes,
-        prazo: "—",
-        status: mapStatus(meta.status),
-        documento_comprobatorio: topico.temDocumentoOficial ? "SIM" : "NÃO",
-        drive_link: meta.documentUrl ?? "",
-        created_at: meta.createdAt,
-      });
-      stepIndex++;
-    }
-  }
-  return etapas;
-}
 
 function extractTipo(nome: string): string | null {
   const match = nome.match(/\(([^)]+)\)$/);
   return match ? match[1] : null;
+}
+
+function metaNumero(descricao: string): string {
+  const match = descricao.match(/Meta\s+(\d+)/i);
+  return match ? match[1] : "--";
+}
+
+// Chave numérica para ordenação — nunca retorna NaN (evita comparador
+// instável em .sort() quando a descrição foge do padrão "Meta N.").
+function metaOrdinal(descricao: string): number {
+  const match = descricao.match(/Meta\s+(\d+)/i);
+  return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "Sem data";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function fileExt(nome: string): string {
+  const match = nome.match(/\.([a-z0-9]+)(?:\.pdf)?$/i);
+  const raw = (match ? match[1] : "arq").toLowerCase();
+  if (raw === "pdf") return "pdf";
+  if (["xlsx", "xls", "csv"].includes(raw)) return "xlsx";
+  if (["pptx", "ppt"].includes(raw)) return "pptx";
+  return raw;
+}
+
+function docPeriod(dateStr: string, today: Date): "30d" | "ano" | "antes" {
+  const date = new Date(dateStr);
+  const diffDays = (today.getTime() - date.getTime()) / 86400000;
+  if (diffDays <= 30) return "30d";
+  if (date.getFullYear() === today.getFullYear()) return "ano";
+  return "antes";
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -516,74 +494,333 @@ function TemaCard({
   );
 }
 
+// ── DocumentosAnexados — busca, ordenação e filtro por período/tipo ──────────
+
+function DocumentosAnexados({ documentos }: { documentos: DocumentoPublico[] }) {
+  const [query, setQuery] = useState("");
+  const [order, setOrder] = useState<"desc" | "asc">("desc");
+  const [period, setPeriod] = useState<"all" | "30d" | "ano">("all");
+  const [type, setType] = useState<string>("all");
+
+  if (documentos.length === 0) {
+    return <p className="text-xs text-white/25 italic">Nenhum documento anexado a esta meta.</p>;
+  }
+
+  const today = new Date();
+  const availableTypes = Array.from(new Set(documentos.map((d) => fileExt(d.nome))));
+  const q = query.trim().toLowerCase();
+
+  const filtered = documentos
+    .filter((d) => !q || d.nome.toLowerCase().includes(q))
+    .filter((d) => period === "all" || docPeriod(d.aprovadoEm, today) === period)
+    .filter((d) => type === "all" || fileExt(d.nome) === type)
+    .sort((a, b) => {
+      const left = new Date(a.aprovadoEm).getTime();
+      const right = new Date(b.aprovadoEm).getTime();
+      return order === "desc" ? right - left : left - right;
+    });
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[140px]">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/25 pointer-events-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar documento..."
+            className="w-full pl-7 pr-2 py-1.5 text-[11px] bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#42b9eb]/30 transition-colors"
+          />
+        </div>
+
+        <button
+          onClick={() => setOrder((o) => (o === "desc" ? "asc" : "desc"))}
+          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/[0.08] text-white/45 hover:text-[#42b9eb] hover:border-[#42b9eb]/30 text-[10px] font-medium transition-colors shrink-0"
+          title={order === "desc" ? "Mais recente primeiro" : "Mais antigo primeiro"}
+        >
+          <ArrowDownUp className="w-3 h-3" />
+          {order === "desc" ? "Recente" : "Antigo"}
+        </button>
+
+        <Select value={period} onValueChange={(v) => setPeriod(v as "all" | "30d" | "ano")}>
+          <SelectTrigger className="h-7 w-auto min-w-[110px] text-[11px] px-2 gap-1 bg-white/[0.04] border-white/[0.08] rounded-lg">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todo período</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="ano">Este ano</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {availableTypes.length > 1 && (
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="h-7 w-auto min-w-[90px] text-[11px] px-2 gap-1 bg-white/[0.04] border-white/[0.08] rounded-lg">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todo tipo</SelectItem>
+              {availableTypes.map((t) => (
+                <SelectItem key={t} value={t}>{t.toUpperCase()}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      <p className="text-[10px] text-white/25">
+        {filtered.length} de {documentos.length} documentos
+      </p>
+
+      {filtered.length === 0 ? (
+        <p className="text-xs text-white/25 italic">Nenhum documento encontrado com esses filtros.</p>
+      ) : (
+        <ul className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+          {filtered.map((doc) => (
+            <li key={doc.id}>
+              <a
+                href={doc.driveOficialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-[11px] text-[#42b9eb]/70 hover:text-[#42b9eb] transition-colors group rounded-lg px-2 py-1.5 hover:bg-white/[0.03]"
+              >
+                <FileText className="w-3 h-3 shrink-0" />
+                <span className="flex-1 min-w-0 truncate underline underline-offset-2 decoration-[#42b9eb]/30 group-hover:decoration-[#42b9eb]">
+                  {doc.nome}
+                </span>
+                <span className="shrink-0 text-[9px] font-bold uppercase text-white/25 border border-white/10 rounded px-1">
+                  {fileExt(doc.nome)}
+                </span>
+                <span className="shrink-0 text-white/25 whitespace-nowrap">
+                  Anexado em {formatDate(doc.aprovadoEm)}
+                </span>
+                <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-50 group-hover:opacity-100" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ── ExpandAllButton — chevron animado com Motion ─────────────────────────────
+
+function ExpandAllButton({ allOpen, onClick }: { allOpen: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/[0.08] text-white/45 hover:text-[#42b9eb] hover:border-[#42b9eb]/30 text-[11px] font-medium transition-colors"
+    >
+      <motion.span
+        animate={{ rotate: allOpen ? 180 : 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        className="inline-flex"
+      >
+        <ChevronDown className="w-3.5 h-3.5" />
+      </motion.span>
+      {allOpen ? "Recolher tudo" : "Expandir tudo"}
+    </button>
+  );
+}
+
+// ── MetaTopicoAccordion — accordion por Meta, sem sheet ──────────────────────
+
+function MetaTopicoAccordion({
+  topico,
+  filters,
+}: {
+  topico: ApiTopico;
+  filters: { status: MetaStatus | "all"; area: string; doc: "all" | "com" | "sem"; query: string };
+}) {
+  const numero = metaNumero(topico.descricao);
+  const titulo = topico.descricao.replace(/^Meta\s+\d+\.\s*/i, "");
+  const q = filters.query.trim().toLowerCase();
+
+  const filteredMetas = topico.metas.filter((m) => {
+    const statusOk = filters.status === "all" || m.status === filters.status;
+    const textOk =
+      !q || m.descricao.toLowerCase().includes(q) || topico.descricao.toLowerCase().includes(q);
+    return statusOk && textOk;
+  });
+
+  const areaOk = filters.area === "all" || topico.setorNomes.includes(filters.area);
+  const hasDocs = topico.documentosAprovados.length > 0;
+  const docOk = filters.doc === "all" || (filters.doc === "com" ? hasDocs : !hasDocs);
+  const anyFilterActive = Boolean(q) || filters.status !== "all" || filters.area !== "all" || filters.doc !== "all";
+  const foraDoFiltro = anyFilterActive && !(areaOk && docOk);
+
+  const total = topico.metas.length;
+  const concluidas = topico.metas.filter(
+    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
+  ).length;
+  const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+
+  return (
+    <Accordion.Item
+      value={topico.id}
+      className="border rounded-xl overflow-hidden border-white/[0.07] data-[state=open]:border-[#42b9eb]/30 transition-all duration-200"
+    >
+      <Accordion.Trigger className="w-full flex flex-wrap items-start gap-2.5 px-4 py-3.5 text-left hover:bg-white/[0.04] data-[state=open]:bg-[#42b9eb]/[0.04] transition-colors group">
+        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb] mt-0.5">
+          Meta {numero}
+        </span>
+        <span className="flex-1 min-w-[200px] text-sm font-medium text-white/85 leading-snug py-0.5">{titulo}</span>
+        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.05] border border-white/[0.08] text-white/45 shrink-0 mt-0.5">
+          {filteredMetas.length}/{total} objetivos
+        </span>
+        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.05] border border-white/[0.08] text-white/45 shrink-0 mt-0.5">
+          {topico.documentosAprovados.length} docs
+        </span>
+        {foraDoFiltro && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-400/10 border border-orange-400/20 text-orange-400 shrink-0 mt-0.5">
+            Fora do filtro
+          </span>
+        )}
+        <ChevronDown className="w-4 h-4 text-white/25 transition-transform duration-200 group-data-[state=open]:rotate-180 shrink-0 mt-1" />
+      </Accordion.Trigger>
+
+      <Accordion.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+        <div className="px-4 pb-4 pt-1 space-y-4">
+          {/* Resumo */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+            <div className="p-2.5 border-r border-b sm:border-b-0 border-white/[0.05]">
+              <p className="text-[9px] uppercase tracking-wide text-white/25 mb-1">Progresso</p>
+              <p className="text-xs font-semibold text-[#42b9eb]">{concluidas}/{total} · {pct}%</p>
+            </div>
+            <div className="p-2.5 border-b sm:border-b-0 sm:border-r border-white/[0.05]">
+              <p className="text-[9px] uppercase tracking-wide text-white/25 mb-1">Áreas</p>
+              <p className="text-xs text-white/60 truncate">{topico.setorNomes.join(", ") || "—"}</p>
+            </div>
+            <div className="p-2.5 border-r border-white/[0.05]">
+              <p className="text-[9px] uppercase tracking-wide text-white/25 mb-1">Ponto focal</p>
+              <p className="text-xs text-white/60 truncate">{topico.pontosFocais.join(", ") || "—"}</p>
+            </div>
+            <div className="p-2.5">
+              <p className="text-[9px] uppercase tracking-wide text-white/25 mb-1">Documentos</p>
+              <p className="text-xs text-white/60">{topico.documentosAprovados.length}</p>
+            </div>
+          </div>
+
+          {foraDoFiltro && (
+            <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-[11px] text-white/40 leading-relaxed">
+              Esta meta não corresponde ao filtro de área/documento selecionado. Ela continua visível — os objetivos abaixo são os dela normalmente.
+            </div>
+          )}
+
+          {/* Objetivos — sem accordion, lista direta */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/25 mb-2">Objetivos</p>
+            {filteredMetas.length === 0 ? (
+              <p className="text-xs text-white/25 italic">
+                Nenhum objetivo encontrado com os filtros aplicados nesta meta.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {filteredMetas.map((meta) => (
+                  <li
+                    key={meta.id}
+                    className="flex items-start gap-2.5 rounded-lg p-2.5 bg-white/[0.03] border border-white/[0.05]"
+                  >
+                    <p className="flex-1 text-xs text-white/55 leading-relaxed">{meta.descricao}</p>
+                    <div className="shrink-0 mt-0.5">
+                      <MetaStatusBadge status={meta.status} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Documentos — accordion aninhado */}
+          <Accordion.Root type="single" collapsible className="rounded-lg border border-white/[0.06] overflow-hidden">
+            <Accordion.Item value="docs" className="border-none">
+              <Accordion.Trigger className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-white/[0.03] transition-colors group/docs">
+                <FileText className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                <span className="flex-1 text-xs font-medium text-white/60">Documentos anexados nessa meta</span>
+                <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb]">
+                  {topico.documentosAprovados.length}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-white/25 transition-transform duration-200 group-data-[state=open]/docs:rotate-180 shrink-0" />
+              </Accordion.Trigger>
+              <Accordion.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="px-3 pb-3 pt-1">
+                  <DocumentosAnexados documentos={topico.documentosAprovados} />
+                </div>
+              </Accordion.Content>
+            </Accordion.Item>
+          </Accordion.Root>
+        </div>
+      </Accordion.Content>
+    </Accordion.Item>
+  );
+}
+
 // ── PlanosSection ─────────────────────────────────────────────────────────────
 
 export function PlanosSection() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [sheetOpenTopico, setSheetOpenTopico] = useState<string | undefined>(undefined);
-  const [page, setPage] = useState(1);
   const [mounted, setMounted] = useState(false);
-  const [tableLoading, setTableLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<EtapaStatus | "all">("all");
-  const prevSelectedId = useRef<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<MetaStatus | "all">("all");
+  const [areaFilter, setAreaFilter] = useState<string>("all");
+  const [docFilter, setDocFilter] = useState<"all" | "com" | "sem">("all");
+  const [openTopicoIds, setOpenTopicoIds] = useState<string[]>([]);
+  const [bulkToggling, setBulkToggling] = useState(false);
   useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    if (!selectedId || prevSelectedId.current === null) {
-      prevSelectedId.current = selectedId;
-      return;
-    }
-    if (prevSelectedId.current !== selectedId) {
-      prevSelectedId.current = selectedId;
-      setTableLoading(true);
-      const t = setTimeout(() => setTableLoading(false), 280);
-      return () => clearTimeout(t);
-    }
-  }, [selectedId]);
 
   const { data: temas, isLoading, isError } = useQuery({
     queryKey: ["temas"],
     queryFn: getTemas,
   });
 
-  const planos: PlanoDeAcao[] = (temas ?? []).map((t, i) => temaToPlano(t, i));
-
-  const etapasByPlan: Record<string, Etapa[]> = {};
-  planos.forEach((plano, i) => {
-    etapasByPlan[plano.id] = temaToEtapas((temas ?? [])[i], plano.code);
-  });
-
   const selectedTema = temas?.find((t) => t.id === selectedId) ?? null;
   const sheetTema = temas?.find((t) => t.id === sheetId) ?? null;
-  const selectedPlan = planos.find((p) => p.id === selectedId);
-  const planObjetivos = (selectedId ? (etapasByPlan[selectedId] ?? []) : [])
-    .slice()
-    .sort((a, b) => {
-      const num = (s: string) => { const m = s.match(/Meta\s+(\d+)/i); return m ? parseInt(m[1], 10) : 9999; };
-      return num(a.tema) - num(b.tema);
-    });
-  const q = searchQuery.trim().toLowerCase();
-  const filteredObjetivos = planObjetivos.filter((e) => {
-    const matchesSearch = !q ||
-      e.description.toLowerCase().includes(q) ||
-      e.tema.toLowerCase().includes(q) ||
-      e.area.toLowerCase().includes(q);
-    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-  const totalPages = Math.ceil(filteredObjetivos.length / PAGE_SIZE);
-  const pagedObjetivos = filteredObjetivos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const completed = planObjetivos.filter(
-    (e) => e.status === "Concluída" || e.status === "Documento Gerado"
-  ).length;
-  const pct = planObjetivos.length > 0 ? Math.round((completed / planObjetivos.length) * 100) : 0;
 
-  const totalTopicos = (temas ?? []).reduce((acc, t) => acc + t.topicos.length, 0);
-  const totalMetas = (temas ?? []).reduce(
-    (acc, t) => acc + t.topicos.reduce((a, tp) => a + tp.metas.length, 0),
-    0
+  // Ref sempre com o dado mais recente, sem forçar o efeito abaixo a rodar
+  // de novo a cada refetch em segundo plano (ex.: refetchOnWindowFocus do
+  // React Query) — só queremos reagir quando o usuário troca de tema.
+  const temasRef = useRef(temas);
+  useEffect(() => {
+    temasRef.current = temas;
+  }, [temas]);
+
+  // Abre a primeira Meta do tema automaticamente sempre que a seleção muda
+  // (e só quando muda — não a cada refetch de "temas").
+  useEffect(() => {
+    const tema = temasRef.current?.find((t) => t.id === selectedId);
+    setOpenTopicoIds(tema && tema.topicos.length > 0 ? [tema.topicos[0].id] : []);
+  }, [selectedId]);
+
+  const sortedTopicos = useMemo(() => {
+    if (!selectedTema) return [];
+    return [...selectedTema.topicos].sort(
+      (a, b) => metaOrdinal(a.descricao) - metaOrdinal(b.descricao)
+    );
+  }, [selectedTema]);
+
+  const areasDoTema = useMemo(
+    () => Array.from(new Set(sortedTopicos.flatMap((t) => t.setorNomes))),
+    [sortedTopicos]
+  );
+  const allTopicoIds = useMemo(() => sortedTopicos.map((t) => t.id), [sortedTopicos]);
+  const allOpen = allTopicoIds.length > 0 && allTopicoIds.every((id) => openTopicoIds.includes(id));
+  const anyFilterActive =
+    Boolean(searchQuery.trim()) || statusFilter !== "all" || areaFilter !== "all" || docFilter !== "all";
+
+  const todasMetasDoTema = useMemo(() => sortedTopicos.flatMap((t) => t.metas), [sortedTopicos]);
+  const completed = useMemo(
+    () => todasMetasDoTema.filter((m) => m.status === "Concluida" || m.status === "DocumentoGerado").length,
+    [todasMetasDoTema]
+  );
+  const pct = todasMetasDoTema.length > 0 ? Math.round((completed / todasMetasDoTema.length) * 100) : 0;
+
+  const totalTopicos = useMemo(() => (temas ?? []).reduce((acc, t) => acc + t.topicos.length, 0), [temas]);
+  const totalMetas = useMemo(
+    () => (temas ?? []).reduce((acc, t) => acc + t.topicos.reduce((a, tp) => a + tp.metas.length, 0), 0),
+    [temas]
   );
 
   return (
@@ -651,47 +888,43 @@ export function PlanosSection() {
                   selected={selectedId === tema.id}
                   onClick={() => {
                     setSelectedId(selectedId === tema.id ? null : tema.id);
-                    setPage(1);
                     setSearchQuery("");
                     setStatusFilter("all");
+                    setAreaFilter("all");
+                    setDocFilter("all");
                   }}
                   onOpenSheet={() => setSheetId(tema.id)}
                 />
               ))}
             </div>
 
-            {/* Tabela inline — aparece abaixo do grid com AnimatePresence */}
+            {/* Painel da meta selecionada — accordion por Meta, sem sheet */}
             <AnimatePresence>
-              {selectedId && selectedPlan && (
+              {selectedId && selectedTema && (
                 <motion.div
-                  key="table-panel"
+                  key="metas-panel"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="mt-8"
                 >
-                  {/* Header do plano selecionado */}
+                  {/* Header do tema selecionado */}
                   <div className="glass-panel p-8 mb-6">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                       <div className="flex-1">
                         <h3 className="font-display font-bold text-2xl text-foreground mb-1">
-                          {selectedPlan.title}
+                          {selectedTema.nome.replace(/ \([^)]+\)$/, "")}
                         </h3>
-                        <p className="text-muted-foreground">{selectedPlan.description}</p>
+                        <p className="text-muted-foreground">
+                          {selectedTema.topicos[0]?.descricao ?? "—"}
+                        </p>
                       </div>
-                      <button
-                        onClick={() => setSheetId(selectedId)}
-                        className="shrink-0 flex items-center gap-1.5 text-[11px] text-white/30 hover:text-[#42b9eb] transition-colors px-3 py-1.5 rounded-lg border border-white/[0.06] hover:border-[#42b9eb]/20"
-                      >
-                        <Layers className="w-3.5 h-3.5" />
-                        Tópicos
-                      </button>
                       <div className="shrink-0 text-right">
                         <div className="flex items-baseline gap-1 justify-end">
                           <AnimatedCounter value={completed} className="text-3xl text-primary" />
                           <span className="text-muted-foreground text-lg">/</span>
-                          <AnimatedCounter value={planObjetivos.length} className="text-3xl text-foreground" />
+                          <AnimatedCounter value={todasMetasDoTema.length} className="text-3xl text-foreground" />
                         </div>
                         <span className="text-xs text-muted-foreground">
                           objetivos &bull; {mounted ? `${pct}%` : "--%"} concluído
@@ -701,20 +934,19 @@ export function PlanosSection() {
                   </div>
 
                   {/* Busca + filtros */}
-                  <div className="flex flex-col sm:flex-row gap-3 mb-3">
-                    {/* Input de busca */}
-                    <div className="relative flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <div className="relative flex-1 min-w-[180px]">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none" />
                       <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                        placeholder="Buscar por descrição, tema ou área…"
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Buscar objetivo ou meta…"
                         className="w-full pl-8 pr-8 py-2 text-xs bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#42b9eb]/30 focus:bg-white/[0.06] transition-all"
                       />
                       {searchQuery && (
                         <button
-                          onClick={() => { setSearchQuery(""); setPage(1); }}
+                          onClick={() => setSearchQuery("")}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/60 transition-colors"
                         >
                           <X className="w-3 h-3" />
@@ -722,199 +954,99 @@ export function PlanosSection() {
                       )}
                     </div>
 
-                    {/* Pills de status */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as MetaStatus | "all")}>
+                      <SelectTrigger className="h-9 w-auto min-w-[130px] text-xs gap-1.5 bg-white/[0.04] border-white/[0.08] rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Status: Todos</SelectItem>
+                        {(Object.keys(META_STATUS_CONFIG) as MetaStatus[]).map((s) => (
+                          <SelectItem key={s} value={s}>{META_STATUS_CONFIG[s].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={areaFilter} onValueChange={setAreaFilter}>
+                      <SelectTrigger className="h-9 w-auto min-w-[110px] text-xs gap-1.5 bg-white/[0.04] border-white/[0.08] rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Área: Todas</SelectItem>
+                        {areasDoTema.map((area) => (
+                          <SelectItem key={area} value={area}>{area}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={docFilter} onValueChange={(v) => setDocFilter(v as "all" | "com" | "sem")}>
+                      <SelectTrigger className="h-9 w-auto min-w-[150px] text-xs gap-1.5 bg-white/[0.04] border-white/[0.08] rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Documento: Todos</SelectItem>
+                        <SelectItem value="com">Com documento</SelectItem>
+                        <SelectItem value="sem">Sem documento</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {anyFilterActive && (
                       <button
-                        onClick={() => { setStatusFilter("all"); setPage(1); }}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${
-                          statusFilter === "all"
-                            ? "bg-white/[0.08] border-white/20 text-white/70"
-                            : "border-white/[0.06] text-white/25 hover:text-white/50 hover:border-white/[0.12]"
-                        }`}
+                        onClick={() => {
+                          setSearchQuery("");
+                          setStatusFilter("all");
+                          setAreaFilter("all");
+                          setDocFilter("all");
+                        }}
+                        className="text-[11px] text-[#42b9eb]/60 hover:text-[#42b9eb] transition-colors underline underline-offset-2"
                       >
-                        Todos
+                        Limpar filtros
                       </button>
-                      {STATUS_LIST.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => { setStatusFilter(s); setPage(1); }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${
-                            statusFilter === s
-                              ? "bg-white/[0.08] border-white/20 text-white/70"
-                              : "border-white/[0.06] text-white/25 hover:text-white/50 hover:border-white/[0.12]"
-                          }`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ETAPA_STATUS_DOT[s] ?? "bg-white/30"}`} />
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tabela de etapas */}
-                  <div className="glass-panel">
-                    <div className="w-full">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-border/50">
-                            {["Tema", "Meta", "Descritivo", "Área", "Status", "Doc"].map(
-                              (h) => (
-                                <th
-                                  key={h}
-                                  className="text-left px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider"
-                                >
-                                  {h}
-                                </th>
-                              )
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tableLoading ? (
-                            Array.from({ length: 6 }).map((_, i) => (
-                              <tr key={i} className="border-b border-border/20">
-                                <td className="px-4 py-3"><div className="h-3 w-6 rounded bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-3 rounded bg-white/[0.06] animate-pulse" style={{ width: `${55 + (i * 17) % 35}%` }} /></td>
-                                <td className="px-4 py-3"><div className="h-3 w-28 rounded bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-3 w-16 rounded bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-5 w-20 rounded-full bg-white/[0.06] animate-pulse" /></td>
-                                <td className="px-4 py-3"><div className="h-3 w-8 rounded bg-white/[0.06] animate-pulse" /></td>
-                              </tr>
-                            ))
-                          ) : pagedObjetivos.map((objetivo, i) => {
-                            const objetivoNum = (() => { const m = objetivo.tema.match(/Meta\s+(\d+)/i); return m ? parseInt(m[1], 10) : objetivo.step_number; })();
-                            const prevNum  = i > 0 ? (() => { const m = pagedObjetivos[i - 1].tema.match(/Meta\s+(\d+)/i); return m ? parseInt(m[1], 10) : pagedObjetivos[i - 1].step_number; })() : null;
-                            const isFirstOfGroup = prevNum !== objetivoNum;
-                            return (
-                              <motion.tr
-                                key={objetivo.id}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.04 }}
-                                onClick={() => {
-                                  setSheetId(objetivo.plan_id);
-                                  setSheetOpenTopico(`${objetivo.plan_id}-${objetivo.topico_id}`);
-                                }}
-                                className={`border-b border-border/20 hover:bg-accent/20 transition-colors cursor-pointer ${
-                                  isFirstOfGroup && i !== 0 ? "border-t-2 border-t-white/10" : ""
-                                }`}
-                              >
-                                <td className="px-4 py-2.5 text-muted-foreground max-w-[200px]">
-                                  <TooltipProvider delayDuration={200}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="group inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-md border border-transparent hover:border-border/60 hover:bg-accent/40 transition-all cursor-default">
-                                          <span className="truncate text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                                            {objetivo.tema.replace(/^Meta\s+\d+\.\s*/i, "")}
-                                          </span>
-                                          <ChevronsUpDown className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" align="start" className="max-w-xs p-3">
-                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Tema</p>
-                                        <p className="text-xs text-popover-foreground leading-relaxed">
-                                          {objetivo.tema.replace(/^Meta\s+\d+\.\s*/i, "")}
-                                        </p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </td>
-                                <td className="px-4 py-2.5 whitespace-nowrap">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#42b9eb]/10 border border-[#42b9eb]/20 text-[#42b9eb]">
-                                    Meta {String(objetivoNum).padStart(2, "0")}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2.5 text-foreground max-w-[400px]">
-                                  {objetivo.description}
-                                </td>
-                                <td className="px-4 py-2.5">
-                                  {objetivo.areas.length === 0 ? (
-                                    <span className="text-muted-foreground">—</span>
-                                  ) : (
-                                    <div className="flex flex-wrap gap-1">
-                                      {objetivo.areas.map((area) => (
-                                        <span
-                                          key={area}
-                                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#42b9eb]/[0.08] border border-[#42b9eb]/20 text-[#42b9eb]/80 whitespace-nowrap leading-tight"
-                                        >
-                                          {area}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2.5">
-                                  <StatusBadge status={objetivo.status} />
-                                </td>
-                                <td className={`px-4 py-2.5 font-bold ${objetivo.documento_comprobatorio === "SIM" ? "text-emerald-400" : "text-rose-400/50"}`}>
-                                  {objetivo.documento_comprobatorio}
-                                </td>
-                              </motion.tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-
-                      {!tableLoading && filteredObjetivos.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-12 gap-2">
-                          <Search className="w-5 h-5 text-white/15" />
-                          <p className="text-xs text-white/25">Nenhum objetivo encontrado para este filtro.</p>
-                          <button
-                            onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
-                            className="text-[11px] text-[#42b9eb]/50 hover:text-[#42b9eb] transition-colors mt-1"
-                          >
-                            Limpar filtros
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Paginação */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between px-5 py-4 border-t border-border/30">
-                        <span className="text-xs text-muted-foreground">
-                          Objetivos{" "}
-                          <span className="font-medium text-foreground">
-                            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredObjetivos.length)}
-                          </span>{" "}
-                          de{" "}
-                          <span className="font-medium text-foreground">{filteredObjetivos.length}</span>
-                        </span>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                            className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                          >
-                            <ChevronRight className="w-4 h-4 rotate-180" />
-                          </button>
-
-                          {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((p) => (
-                            <button
-                              key={p}
-                              onClick={() => setPage(p)}
-                              className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-medium transition-all ${
-                                p === page
-                                  ? "bg-primary/15 text-primary border border-primary/30"
-                                  : "border border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          ))}
-
-                          <button
-                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={page === totalPages}
-                            className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
                     )}
                   </div>
+
+                  {/* Cabeçalho da lista de metas + expandir/recolher tudo */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/25">
+                      Metas do tema
+                    </span>
+                    <ExpandAllButton
+                      allOpen={allOpen}
+                      onClick={() => {
+                        // Pula a animação de altura ao abrir/fechar várias de uma vez —
+                        // evita o "tranco" de vários painéis animando juntos. Espera dois
+                        // frames (o browser aplicar o novo layout) antes de reabilitar a
+                        // animação — mais confiável do que um tempo fixo em ms.
+                        setBulkToggling(true);
+                        setOpenTopicoIds(allOpen ? [] : allTopicoIds);
+                        requestAnimationFrame(() => {
+                          requestAnimationFrame(() => setBulkToggling(false));
+                        });
+                      }}
+                    />
+                  </div>
+
+                  {/* Accordion de Metas — substitui a tabela paginada e o sheet de tópicos */}
+                  {sortedTopicos.length > 0 ? (
+                    <Accordion.Root
+                      type="multiple"
+                      value={openTopicoIds}
+                      onValueChange={setOpenTopicoIds}
+                      className={`space-y-3 ${bulkToggling ? "accordion-bulk-toggle" : ""}`}
+                    >
+                      {sortedTopicos.map((topico) => (
+                        <MetaTopicoAccordion
+                          key={topico.id}
+                          topico={topico}
+                          filters={{ status: statusFilter, area: areaFilter, doc: docFilter, query: searchQuery }}
+                        />
+                      ))}
+                    </Accordion.Root>
+                  ) : (
+                    <div className="glass-panel flex flex-col items-center justify-center py-12 gap-2">
+                      <Search className="w-5 h-5 text-white/15" />
+                      <p className="text-xs text-white/25">Nenhuma meta cadastrada para este tema.</p>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
