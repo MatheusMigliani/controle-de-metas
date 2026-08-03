@@ -6,10 +6,12 @@ function runtimeEnv(key: string): string | undefined {
 }
 
 const getMetasBase = () => {
-  if (typeof window === "undefined") {
-    return runtimeEnv('NEXT_PUBLIC_METAS_API');
-  }
-  return window.__ENV__?.NEXT_PUBLIC_METAS_API || "";
+  const base =
+    typeof window === "undefined"
+      ? runtimeEnv('NEXT_PUBLIC_METAS_API')
+      : window.__ENV__?.NEXT_PUBLIC_METAS_API || "";
+  // Remove barra(s) finais para evitar "//temas" ao concatenar o path do endpoint.
+  return (base ?? "").replace(/\/+$/, "");
 };
 
 

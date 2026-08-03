@@ -211,6 +211,14 @@
   50% { opacity: 0; }
 }
 
+/* Usado só durante "Expandir/Recolher tudo" para pular a animação de altura
+   dos accordions e evitar o tranco de vários painéis animando ao mesmo tempo.
+   Não afeta o accordion do sheet de tópicos (fora desse escopo). */
+.accordion-bulk-toggle [data-state] {
+  animation: none !important;
+  transition: none !important;
+}
+
 .animate-float-slow {
   animation: float-slow 8s ease-in-out infinite;
 }

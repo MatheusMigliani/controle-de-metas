@@ -37,7 +37,8 @@ api.interceptors.request.use((config) => {
     "";
 
   if (!config.baseURL) {
-    config.baseURL = base;
+    // Remove barra(s) finais para evitar "//" ao concatenar com paths que já começam com "/".
+    config.baseURL = base.replace(/\/+$/, "");
   }
 
   const token = getToken();
