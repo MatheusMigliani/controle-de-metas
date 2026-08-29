@@ -5,7 +5,13 @@ import { motion } from "framer-motion";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ExternalLink, ChevronDown, Users, FileText } from "lucide-react";
 import { getTemas } from "@/lib/metas-api";
-import { META_STATUS_CONFIG, type ApiTema, type ApiTopico, type MetaStatus } from "@/lib/types";
+import {
+  getMetaStatusConfig,
+  isCompletedMetaStatus,
+  type ApiTema,
+  type ApiTopico,
+  type MetaStatus,
+} from "@/lib/types";
 import SpotlightCard from "@/components/SpotlightCard";
 
 // ── Skeleton ─────────────────────────────────────────────────────────────────
@@ -40,7 +46,7 @@ function TemasSkeleton() {
 // ── Status badge inline ───────────────────────────────────────────────────────
 
 function MetaStatusBadge({ status }: { status: MetaStatus }) {
-  const cfg = META_STATUS_CONFIG[status] ?? META_STATUS_CONFIG.NaoIniciada;
+  const cfg = getMetaStatusConfig(status);
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.bg} ${cfg.color} shrink-0`}
@@ -62,9 +68,7 @@ function extractTipo(nome: string): string | null {
 
 function TopicoAccordionItem({ topico, index }: { topico: ApiTopico; index: number }) {
   const totalMetas = topico.metas.length;
-  const concluidas = topico.metas.filter(
-    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
-  ).length;
+  const concluidas = topico.metas.filter((m) => isCompletedMetaStatus(m.status)).length;
 
   return (
     <Accordion.Item
@@ -116,7 +120,7 @@ function TopicoAccordionItem({ topico, index }: { topico: ApiTopico; index: numb
           {topico.metas.length > 0 ? (
             <ul className="space-y-2">
               {topico.metas.map((meta) => {
-                const cfg = META_STATUS_CONFIG[meta.status] ?? META_STATUS_CONFIG.NaoIniciada;
+                const cfg = getMetaStatusConfig(meta.status);
                 return (
                   <li
                     key={meta.id}
@@ -190,9 +194,7 @@ function TemaCard({ tema, index }: { tema: ApiTema; index: number }) {
 
   const todasMetas = tema.topicos.flatMap((t) => t.metas);
   const total = todasMetas.length;
-  const concluidas = todasMetas.filter(
-    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
-  ).length;
+  const concluidas = todasMetas.filter((m) => isCompletedMetaStatus(m.status)).length;
   const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
 
   return (
