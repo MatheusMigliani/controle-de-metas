@@ -244,7 +244,7 @@ git add -- docs/superpowers/plans/2026-08-28-fechamento-temporario-envios.md
 git commit -m "docs: registrar execucao do hotfix de envios"
 ```
 
-- [ ] **Step 4: Re-run the final verification suite**
+- [x] **Step 4: Re-run the final verification suite**
 
 Run: `npm test`
 
