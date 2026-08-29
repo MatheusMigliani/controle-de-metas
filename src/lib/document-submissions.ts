@@ -1,7 +1,7 @@
 export const DOCUMENT_SUBMISSIONS_OPEN = false;
 
 export const DOCUMENT_SUBMISSIONS_CLOSED_MESSAGE =
-  "Os envios e alteracoes de documentos estao encerrados.";
+  "Os envios e alterações de documentos estão encerrados.";
 
 export type DocumentSubmissionAction =
   | "upload"
