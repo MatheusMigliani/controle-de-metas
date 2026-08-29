@@ -31,7 +31,7 @@
 - Produces: `DocumentSubmissionAction`
 - Produces: `isDocumentSubmissionActionAllowed(action, submissionsOpen?): boolean`
 
-- [ ] **Step 1: Write the failing policy tests**
+- [x] **Step 1: Write the failing policy tests**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -60,13 +60,13 @@ describe("document submission policy", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test to verify it fails**
+- [x] **Step 2: Run the focused test to verify it fails**
 
 Run: `npm test -- src/lib/document-submissions.test.ts`
 
 Expected: FAIL because `@/lib/document-submissions` does not exist.
 
-- [ ] **Step 3: Implement the minimal policy**
+- [x] **Step 3: Implement the minimal policy**
 
 ```ts
 export const DOCUMENT_SUBMISSIONS_OPEN = false;
@@ -96,13 +96,13 @@ export function isDocumentSubmissionActionAllowed(
 }
 ```
 
-- [ ] **Step 4: Run the focused test to verify it passes**
+- [x] **Step 4: Run the focused test to verify it passes**
 
 Run: `npm test -- src/lib/document-submissions.test.ts`
 
 Expected: PASS with 3 tests.
 
-- [ ] **Step 5: Commit the policy**
+- [x] **Step 5: Commit the policy**
 
 ```bash
 git add -- src/lib/document-submissions.ts src/lib/document-submissions.test.ts
@@ -120,7 +120,7 @@ git commit -m "feat: adicionar politica temporaria de envios"
 - Consumes: `DocumentSubmissionAction`
 - Consumes: `isDocumentSubmissionActionAllowed(action, submissionsOpen?): boolean`
 
-- [ ] **Step 1: Import the policy and derive action permissions**
+- [x] **Step 1: Import the policy and derive action permissions**
 
 Adicionar os imports da politica. Manter as regras atuais de papel e autoria,
 mas combinar cada mutacao com a acao correspondente:
@@ -138,7 +138,7 @@ const canDelete = (doc: TopicoDocumento) => {
 
 Aplicar o mesmo principio a reenvio, devolucao e aprovacao com arquivo.
 
-- [ ] **Step 2: Guard every blocked handler**
+- [x] **Step 2: Guard every blocked handler**
 
 Criar um helper local que informa o fechamento e evita a chamada HTTP:
 
@@ -154,7 +154,7 @@ Usar o helper no inicio de `uploadFile`, `handleReuploadChange`,
 `handleApproveWithFile`, `handleReturn` e `handleDelete`. Limpar o input de
 arquivo quando um evento bloqueado ja tiver sido disparado.
 
-- [ ] **Step 3: Remove mutation controls while closed**
+- [x] **Step 3: Remove mutation controls while closed**
 
 - Renderizar os inputs ocultos de reenvio e aprovacao com arquivo apenas quando
   suas acoes estiverem permitidas.
@@ -168,7 +168,7 @@ arquivo quando um evento bloqueado ja tiver sido disparado.
   esses podem seguir pela aprovacao do arquivo existente.
 - Manter "Confirmar versao final" sem alteracao.
 
-- [ ] **Step 4: Add the closed-state notice**
+- [x] **Step 4: Add the closed-state notice**
 
 Na cabecalho de "Documentos Anexados", renderizar quando fechado:
 
@@ -179,13 +179,13 @@ Na cabecalho de "Documentos Anexados", renderizar quando fechado:
 </div>
 ```
 
-- [ ] **Step 5: Run all frontend tests**
+- [x] **Step 5: Run all frontend tests**
 
 Run: `npm test`
 
 Expected: PASS for all test files with zero failures.
 
-- [ ] **Step 6: Run the production build**
+- [x] **Step 6: Run the production build**
 
 Run: `npm run build`
 
@@ -193,6 +193,10 @@ Expected: exit code 0. Existing unrelated lint warnings may remain, but no new
 TypeScript or ESLint errors are allowed.
 
 - [ ] **Step 7: Verify the admin workflow manually**
+
+Blocked locally: the in-app browser reached `/login` and no authenticated
+dashboard session was available. No credentials or production data were
+modified to bypass authentication.
 
 Run the frontend and inspect `/dashboard` with an authenticated profile:
 
@@ -203,7 +207,7 @@ Run the frontend and inspect `/dashboard` with an authenticated profile:
 - document links and history remain available;
 - browser console has no new errors.
 
-- [ ] **Step 8: Commit the dashboard integration**
+- [x] **Step 8: Commit the dashboard integration**
 
 ```bash
 git add -- src/components/dashboard/TemasView.tsx
@@ -219,11 +223,11 @@ git commit -m "fix: fechar alteracoes de documentos no dashboard"
 - Consumes: the policy and dashboard integration from Tasks 1 and 2.
 - Produces: a verified branch ready to push and open against `gcp-deploy`.
 
-- [ ] **Step 1: Mark completed plan items**
+- [x] **Step 1: Mark completed plan items**
 
 Atualizar cada checkbox executado de `[ ]` para `[x]` sem alterar os requisitos.
 
-- [ ] **Step 2: Verify the final diff**
+- [x] **Step 2: Verify the final diff**
 
 Run: `git diff origin/gcp-deploy...HEAD --check`
 
@@ -233,7 +237,7 @@ Run: `git diff origin/gcp-deploy...HEAD --stat`
 
 Expected: only the spec, plan, policy, policy tests and `TemasView.tsx`.
 
-- [ ] **Step 3: Commit plan completion**
+- [x] **Step 3: Commit plan completion**
 
 ```bash
 git add -- docs/superpowers/plans/2026-08-28-fechamento-temporario-envios.md
