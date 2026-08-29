@@ -10,7 +10,9 @@ import {
   type ApiTopico,
   type MetaStatus,
   type DocumentoPublico,
-  META_STATUS_CONFIG,
+  META_STATUS_FILTER_OPTIONS,
+  getMetaStatusConfig,
+  isCompletedMetaStatus,
 } from "@/lib/types";
 import { AnimatedCounter } from "./AnimatedCounter";
 import SpotlightCard from "@/components/SpotlightCard";
@@ -113,7 +115,7 @@ function Skeleton() {
 // ── MetaStatusBadge ───────────────────────────────────────────────────────────
 
 function MetaStatusBadge({ status }: { status: MetaStatus }) {
-  const cfg = META_STATUS_CONFIG[status] ?? META_STATUS_CONFIG.NaoIniciada;
+  const cfg = getMetaStatusConfig(status);
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.bg} ${cfg.color} shrink-0`}
@@ -136,9 +138,7 @@ function TopicoAccordionItem({
   temaId: string;
 }) {
   const totalMetas = topico.metas.length;
-  const concluidas = topico.metas.filter(
-    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
-  ).length;
+  const concluidas = topico.metas.filter((m) => isCompletedMetaStatus(m.status)).length;
   const pct = totalMetas > 0 ? Math.round((concluidas / totalMetas) * 100) : 0;
   // value único por tema + tópico para evitar colisão entre sheets re-renderizados
   const itemValue = `${temaId}-${topico.id}`;
@@ -206,7 +206,7 @@ function TopicoAccordionItem({
           {topico.metas.length > 0 ? (
             <ul className="space-y-1.5">
               {topico.metas.map((meta) => {
-                const cfg = META_STATUS_CONFIG[meta.status] ?? META_STATUS_CONFIG.NaoIniciada;
+                const cfg = getMetaStatusConfig(meta.status);
                 return (
                   <li
                     key={meta.id}
@@ -283,9 +283,7 @@ function TemaSheet({
 }) {
   const todasMetas = tema?.topicos.flatMap((t) => t.metas) ?? [];
   const total = todasMetas.length;
-  const concluidas = todasMetas.filter(
-    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
-  ).length;
+  const concluidas = todasMetas.filter((m) => isCompletedMetaStatus(m.status)).length;
   const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
   const tipo = tema ? extractTipo(tema.nome) : null;
   const nomeClean = tema?.nome.replace(/ \([^)]+\)$/, "") ?? "";
@@ -404,9 +402,7 @@ function TemaCard({
   const nomeClean = tema.nome.replace(/ \([^)]+\)$/, "");
   const todasMetas = tema.topicos.flatMap((t) => t.metas);
   const total = todasMetas.length;
-  const concluidas = todasMetas.filter(
-    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
-  ).length;
+  const concluidas = todasMetas.filter((m) => isCompletedMetaStatus(m.status)).length;
   const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
 
   return (
@@ -651,9 +647,7 @@ function MetaTopicoAccordion({
   const foraDoFiltro = anyFilterActive && !(areaOk && docOk);
 
   const total = topico.metas.length;
-  const concluidas = topico.metas.filter(
-    (m) => m.status === "Concluida" || m.status === "DocumentoGerado"
-  ).length;
+  const concluidas = topico.metas.filter((m) => isCompletedMetaStatus(m.status)).length;
   const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
 
   return (
@@ -812,7 +806,7 @@ export function PlanosSection() {
 
   const todasMetasDoTema = useMemo(() => sortedTopicos.flatMap((t) => t.metas), [sortedTopicos]);
   const completed = useMemo(
-    () => todasMetasDoTema.filter((m) => m.status === "Concluida" || m.status === "DocumentoGerado").length,
+    () => todasMetasDoTema.filter((m) => isCompletedMetaStatus(m.status)).length,
     [todasMetasDoTema]
   );
   const pct = todasMetasDoTema.length > 0 ? Math.round((completed / todasMetasDoTema.length) * 100) : 0;
@@ -960,8 +954,8 @@ export function PlanosSection() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Status: Todos</SelectItem>
-                        {(Object.keys(META_STATUS_CONFIG) as MetaStatus[]).map((s) => (
-                          <SelectItem key={s} value={s}>{META_STATUS_CONFIG[s].label}</SelectItem>
+                        {META_STATUS_FILTER_OPTIONS.map((s) => (
+                          <SelectItem key={s} value={s}>{getMetaStatusConfig(s).label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

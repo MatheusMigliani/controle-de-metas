@@ -69,7 +69,14 @@ export interface ApiSetor {
 
 // ── API de Metas ─────────────────────────────────────────────────────────────
 
-export type MetaStatus = "NaoIniciada" | "EmAndamento" | "Concluida" | "DocumentoGerado" | "AguardandoRetorno";
+export type MetaStatus =
+  | "NaoIniciada"
+  | "EmAndamento"
+  | "PendenteAprovacao"
+  | "Concluido"
+  | "Concluida"
+  | "DocumentoGerado"
+  | "AguardandoRetorno";
 
 export interface ApiMeta {
   id: string;
@@ -152,13 +159,34 @@ export interface NewsletterSubscriber {
   criadoEm: string;
 }
 
-export const META_STATUS_CONFIG: Record<MetaStatus, { label: string; color: string; bg: string; dot: string }> = {
+type MetaStatusConfig = { label: string; color: string; bg: string; dot: string };
+
+export const META_STATUS_CONFIG: Record<MetaStatus, MetaStatusConfig> = {
   NaoIniciada:       { label: "Não Iniciada",      color: "text-white/40",    bg: "bg-white/[0.06] border-white/10",         dot: "bg-white/30" },
   EmAndamento:       { label: "Em Andamento",       color: "text-yellow-300",  bg: "bg-yellow-300/10 border-yellow-300/20",   dot: "bg-yellow-300" },
+  PendenteAprovacao: { label: "Pendente Aprovação", color: "text-orange-300",  bg: "bg-orange-300/10 border-orange-300/20",   dot: "bg-orange-300" },
+  Concluido:         { label: "Concluída",          color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
   Concluida:         { label: "Concluída",          color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
   DocumentoGerado:   { label: "Documento Gerado",   color: "text-[#42b9eb]",   bg: "bg-[#42b9eb]/10 border-[#42b9eb]/20",    dot: "bg-[#42b9eb]" },
   AguardandoRetorno: { label: "Aguardando Retorno", color: "text-orange-400",  bg: "bg-orange-400/10 border-orange-400/20",  dot: "bg-orange-400" },
 };
+
+export const META_STATUS_FILTER_OPTIONS: MetaStatus[] = [
+  "NaoIniciada",
+  "EmAndamento",
+  "PendenteAprovacao",
+  "Concluido",
+  "DocumentoGerado",
+  "AguardandoRetorno",
+];
+
+export function getMetaStatusConfig(status: MetaStatus | string): MetaStatusConfig {
+  return META_STATUS_CONFIG[status as MetaStatus] ?? META_STATUS_CONFIG.NaoIniciada;
+}
+
+export function isCompletedMetaStatus(status: MetaStatus | string): boolean {
+  return status === "Concluido" || status === "Concluida" || status === "DocumentoGerado";
+}
 
 // ── API de Dashboard ──────────────────────────────────────────────────────────
 
