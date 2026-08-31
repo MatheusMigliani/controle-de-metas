@@ -230,10 +230,19 @@ export function IntegracoesView() {
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-base font-bold text-foreground">Envios de documentos</h3>
               {subStatus === null && !subLoading ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-slate-400/10 text-slate-500 border-slate-400/20">
-                  <XCircle size={14} />
-                  Status desconhecido
-                </span>
+                <>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-slate-400/10 text-slate-500 border-slate-400/20">
+                    <XCircle size={14} />
+                    Status desconhecido
+                  </span>
+                  <button
+                    onClick={fetchSubStatus}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <RefreshCw size={11} />
+                    Atualizar status
+                  </button>
+                </>
               ) : (
                 <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
                   subStatus?.isPaused
