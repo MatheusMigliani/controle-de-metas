@@ -2,12 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
-import {
-  DOCUMENT_SUBMISSIONS_CLOSED_MESSAGE,
-  DOCUMENT_SUBMISSIONS_OPEN,
-  isDocumentSubmissionActionAllowed,
-  type DocumentSubmissionAction,
-} from "@/lib/document-submissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio, Paperclip, FileText, Trash2, Upload, ThumbsUp, ThumbsDown, RefreshCw, ExternalLink, History, Pencil } from "lucide-react";
@@ -423,29 +417,18 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const isApprover     = user?.role === "Admin" || user?.role === "Aprovador";
-  const roleCanUpload  = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
-  const canUpload      = roleCanUpload && isDocumentSubmissionActionAllowed("upload");
-  const canReturn      = isApprover && isDocumentSubmissionActionAllowed("return");
-  const canApproveWithFile = isDocumentSubmissionActionAllowed("approveWithFile");
+  const canUpload      = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
   const canViewHistory = user?.role === "Admin" || user?.role === "Aprovador";
 
   const canDelete = (doc: TopicoDocumento) => {
-    if (!isDocumentSubmissionActionAllowed("delete")) return false;
     if (user?.role === "Admin") return true;
     if (doc.status === "Aprovado") return false;
     return doc.uploadedByUserId === user?.userId;
   };
 
   const canReupload = (doc: TopicoDocumento) =>
-    isDocumentSubmissionActionAllowed("reupload") &&
     doc.status === "Devolvido" &&
     (user?.role === "Admin" || doc.uploadedByUserId === user?.userId);
-
-  function guardDocumentAction(action: DocumentSubmissionAction): boolean {
-    if (isDocumentSubmissionActionAllowed(action)) return true;
-    toast.info(DOCUMENT_SUBMISSIONS_CLOSED_MESSAGE);
-    return false;
-  }
 
   // Lazy-fetch documents on first expand
   useEffect(() => {
@@ -460,7 +443,6 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   }, [expanded]);
 
   async function uploadFile(file: File) {
-    if (!guardDocumentAction("upload")) return;
     if (!ALLOWED_STAGING_EXTS.includes(getExt(file.name))) {
       toast.error("Formato inválido. Apenas .doc, .docx e .pdf são permitidos.");
       return;
@@ -498,10 +480,6 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
     const file = e.target.files?.[0];
     const docId = reuploadDocIdRef.current;
     if (!file || !docId) return;
-    if (!guardDocumentAction("reupload")) {
-      if (reuploadInputRef.current) reuploadInputRef.current.value = "";
-      return;
-    }
     if (!ALLOWED_STAGING_EXTS.includes(getExt(file.name))) {
       toast.error("Formato inválido. Apenas .doc, .docx e .pdf são permitidos.");
       if (reuploadInputRef.current) reuploadInputRef.current.value = "";
@@ -537,9 +515,8 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   const isPdf  = (name: string) => getExt(name) === ".pdf";
 
   function openApprovalModal(docId: string) {
-    const doc = documents.find((item) => item.id === docId);
     setApprovalDocId(docId);
-    setApprovalMode(!canApproveWithFile && doc && isPdf(doc.nome) ? "move" : null);
+    setApprovalMode(null);
     setApprovalFile(null);
     setApprovalComentario("");
   }
@@ -572,7 +549,6 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   }
 
   async function handleApproveWithFile() {
-    if (!guardDocumentAction("approveWithFile")) return;
     if (!approvalDocId || !approvalFile) return;
     if (!ALLOWED_OFFICIAL_EXTS.includes(getExt(approvalFile.name))) {
       toast.error("A pasta oficial aceita apenas arquivos .pdf.");
@@ -604,7 +580,6 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   }
 
   async function handleReturn() {
-    if (!guardDocumentAction("return")) return;
     if (!returnDocId || !returnComment.trim()) return;
     setIsReturning(true);
     try {
@@ -639,7 +614,6 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   }
 
   async function handleDelete(docId: string) {
-    if (!guardDocumentAction("delete")) return;
     setDeletingId(docId);
     try {
       await api.delete(`/topicos/${topico.id}/documents/${docId}`);
@@ -818,35 +792,29 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                 >
                   <p className="text-sm font-semibold text-foreground">Mover arquivo atual para a pasta definitiva</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {canMove
-                      ? "O arquivo PDF atual será copiado para o Drive oficial."
-                      : canApproveWithFile
-                        ? "Indisponível — o arquivo não é PDF. Use a opção abaixo."
-                        : "Indisponível — o arquivo atual não é PDF."}
+                    {canMove ? "O arquivo PDF atual será copiado para o Drive oficial." : "Indisponível — o arquivo não é PDF. Use a opção abaixo."}
                   </p>
                 </button>
               );
             })()}
 
             {/* Opção B — subir arquivo corrigido */}
-            {canApproveWithFile && (
-              <button
-                type="button"
-                onClick={() => { setApprovalMode("upload"); approvalFileInputRef.current?.click(); }}
-                className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
-                  approvalMode === "upload"
-                    ? "border-primary bg-primary/5"
-                    : "border-border/50 hover:border-primary/40 hover:bg-primary/5"
-                }`}
-              >
-                <p className="text-sm font-semibold text-foreground">Subir arquivo corrigido em PDF</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {approvalFile
-                    ? `Arquivo selecionado: ${approvalFile.name}`
-                    : "Clique para selecionar um PDF. Ele substituirá o atual e irá para a pasta oficial."}
-                </p>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => { setApprovalMode("upload"); approvalFileInputRef.current?.click(); }}
+              className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                approvalMode === "upload"
+                  ? "border-primary bg-primary/5"
+                  : "border-border/50 hover:border-primary/40 hover:bg-primary/5"
+              }`}
+            >
+              <p className="text-sm font-semibold text-foreground">Subir arquivo corrigido em PDF</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {approvalFile
+                  ? `Arquivo selecionado: ${approvalFile.name}`
+                  : "Clique para selecionar um PDF. Ele substituirá o atual e irá para a pasta oficial."}
+              </p>
+            </button>
 
             {/* Mensagem para o analista */}
             <div className="space-y-1.5">
@@ -1040,20 +1008,9 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                     )}
                   </div>
 
-                  {!DOCUMENT_SUBMISSIONS_OPEN && (
-                    <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-                      <AlertCircle size={13} className="shrink-0" />
-                      <span className="text-[11px] font-medium">Envios e alterações de documentos encerrados.</span>
-                    </div>
-                  )}
-
                   {/* Hidden reupload input */}
-                  {isDocumentSubmissionActionAllowed("reupload") && (
-                    <input ref={reuploadInputRef} type="file" accept=".doc,.docx,.pdf" className="hidden" onChange={handleReuploadChange} />
-                  )}
-                  {canApproveWithFile && (
-                    <input ref={approvalFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setApprovalFile(e.target.files?.[0] ?? null)} />
-                  )}
+                  <input ref={reuploadInputRef} type="file" accept=".doc,.docx,.pdf" className="hidden" onChange={handleReuploadChange} />
+                  <input ref={approvalFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setApprovalFile(e.target.files?.[0] ?? null)} />
 
                   {docLoading ? (
                     <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground">
@@ -1158,10 +1115,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                               )}
 
                               {/* Approve + Return — Aprovador/Admin on pending docs */}
-                              {isApprover &&
-                               doc.status === "PendenteAprovacao" &&
-                               isDocumentSubmissionActionAllowed("approveExisting") &&
-                               (isPdf(doc.nome) || canApproveWithFile) && (
+                              {isApprover && doc.status === "PendenteAprovacao" && (
                                 <>
                                   <button
                                     onClick={() => openApprovalModal(doc.id)}
@@ -1171,15 +1125,13 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                                     <ThumbsUp size={12} />
                                     Revisado
                                   </button>
-                                  {canReturn && (
-                                    <button
-                                      onClick={() => setReturnDocId(doc.id)}
-                                      disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
-                                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      <ThumbsDown size={12} />Devolver
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => setReturnDocId(doc.id)}
+                                    disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <ThumbsDown size={12} />Devolver
+                                  </button>
                                 </>
                               )}
 
