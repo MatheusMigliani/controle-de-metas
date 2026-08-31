@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
+import {
+  canConfirmDocument,
+  canDeleteDocument,
+  canReuploadDocument,
+  canReviewDocuments,
+  canUploadDocuments,
+} from "@/lib/document-submissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio, Paperclip, FileText, Trash2, Upload, ThumbsUp, ThumbsDown, RefreshCw, ExternalLink, History, Pencil } from "lucide-react";
@@ -10,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetorAutocomplete } from "@/components/ui/SetorAutocomplete";
 import { toast } from "sonner";
-import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload, MetaStatusLoggedPayload, TopicoDocumentLoggedPayload, UserRoleLoggedPayload } from "@/hooks/useMetaHub";
+import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload, MetaStatusLoggedPayload, TopicoDocumentLoggedPayload, UserRoleLoggedPayload, DocumentSubmissionsStatusPayload } from "@/hooks/useMetaHub";
 import { Textarea } from "@/components/ui/textarea";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -370,9 +377,10 @@ interface TopicoCardProps {
   liveDocLogs:       Map<string, DocumentoLog>;
   liveMetaLogs:      Map<string, MetaStatusLog>;
   defaultExpanded?:  boolean;
+  submissionsPaused: boolean;
 }
 
-function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs, defaultExpanded }: TopicoCardProps) {
+function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs, defaultExpanded, submissionsPaused }: TopicoCardProps) {
   const { user } = useAuth();
   const [expanded, setExpanded]         = useState(defaultExpanded ?? false);
   const [hasFetched, setHasFetched]     = useState(false);
@@ -416,19 +424,15 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   const total = topico.metas.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const isApprover     = user?.role === "Admin" || user?.role === "Aprovador";
-  const canUpload      = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
+  const isApprover     = canReviewDocuments(user?.role, submissionsPaused);
+  const canUpload       = canUploadDocuments(user?.role, submissionsPaused);
   const canViewHistory = user?.role === "Admin" || user?.role === "Aprovador";
 
-  const canDelete = (doc: TopicoDocumento) => {
-    if (user?.role === "Admin") return true;
-    if (doc.status === "Aprovado") return false;
-    return doc.uploadedByUserId === user?.userId;
-  };
+  const canDelete = (doc: TopicoDocumento) =>
+    canDeleteDocument(doc.status, doc.uploadedByUserId, user?.userId, user?.role, submissionsPaused);
 
   const canReupload = (doc: TopicoDocumento) =>
-    doc.status === "Devolvido" &&
-    (user?.role === "Admin" || doc.uploadedByUserId === user?.userId);
+    canReuploadDocument(doc.status, doc.uploadedByUserId, user?.userId, user?.role, submissionsPaused);
 
   // Lazy-fetch documents on first expand
   useEffect(() => {
@@ -463,8 +467,9 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       );
       onDocumentsChange(topico.id, [r.data.data, ...documents]);
       toast.success("Documento enviado! Aguardando aprovação.");
-    } catch {
-      toast.error("Erro ao enviar o documento.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg ?? "Erro ao enviar o documento.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -500,8 +505,9 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       );
       onDocumentsChange(topico.id, documents.map((d) => d.id === docId ? r.data.data : d));
       toast.success("Documento reenviado! Aguardando nova aprovação.");
-    } catch {
-      toast.error("Erro ao reenviar o documento.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg ?? "Erro ao reenviar o documento.");
     } finally {
       setReuploadingId(null);
       if (reuploadInputRef.current) reuploadInputRef.current.value = "";
@@ -591,8 +597,9 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       toast.success("Documento devolvido para correção.");
       setReturnDocId(null);
       setReturnComment("");
-    } catch {
-      toast.error("Erro ao devolver o documento.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg ?? "Erro ao devolver o documento.");
     } finally {
       setIsReturning(false);
     }
@@ -606,8 +613,9 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       );
       onDocumentsChange(topico.id, documents.map((d) => d.id === docId ? r.data.data : d));
       toast.success("Versão final confirmada e enviada para o Drive oficial!");
-    } catch {
-      toast.error("Erro ao confirmar o documento.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg ?? "Erro ao confirmar o documento.");
     } finally {
       setApprovingId(null);
     }
@@ -619,8 +627,9 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
       await api.delete(`/topicos/${topico.id}/documents/${docId}`);
       onDocumentsChange(topico.id, documents.filter((d) => d.id !== docId));
       toast.success("Documento removido.");
-    } catch {
-      toast.error("Erro ao remover o documento.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg ?? "Erro ao remover o documento.");
     } finally {
       setDeletingId(null);
     }
@@ -1102,8 +1111,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                             {/* Row 4: action buttons + histórico */}
                             <div className="ml-11 flex items-center gap-2 flex-wrap mt-1">
                               {/* Confirm — analista original ou Admin quando aguardando confirmação */}
-                              {doc.status === "PendenteConfirmacaoAnalista" &&
-                               (user?.userId === doc.uploadedByUserId || user?.role === "Admin") && (
+                              {canConfirmDocument(doc.status, doc.uploadedByUserId, user?.userId, user?.role, submissionsPaused) && (
                                 <button
                                   onClick={() => handleConfirm(doc.id)}
                                   disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
@@ -1252,6 +1260,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
   const [liveStatuses, setLiveStatuses]       = useState<Map<string, MetaStatus>>(new Map());
   const [topicoDocumentos, setTopicoDocumentos] = useState<Map<string, TopicoDocumento[]>>(new Map());
   const [hubConnected, setHubConnected] = useState(false);
+  const [submissionsPaused, setSubmissionsPaused] = useState(false);
 
   // Auto-expand tema + tópico when navigating from a notification/email link
   useEffect(() => {
@@ -1259,6 +1268,12 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
     const tema = temas.find((t) => t.topicos.some((tp) => tp.id === targetTopicoId));
     if (tema) setExpanded(tema.id);
   }, [targetTopicoId, temas]);
+
+  useEffect(() => {
+    api.get<DocumentSubmissionsStatusPayload>("/document-submissions/status")
+      .then((r) => setSubmissionsPaused(r.data.isPaused))
+      .catch(() => {});
+  }, []);
 
   // New Theme state
   const [isTemaDialogOpen, setIsTemaDialogOpen] = useState(false);
@@ -1338,6 +1353,10 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
     setLiveDocLogs((prev) => new Map(prev).set(payload.docId, payload.log));
   }, []);
 
+  const handleDocumentSubmissionsStatusChanged = useCallback((payload: DocumentSubmissionsStatusPayload) => {
+    setSubmissionsPaused(payload.isPaused);
+  }, []);
+
   useMetaHub({
     onMetaStatusChanged:      handleMetaStatusChanged,
     onMetaCreated:            handleMetaCreated,
@@ -1346,6 +1365,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
     onTopicoDocumentUpdated:  handleTopicoDocumentUpdated,
     onMetaStatusLogged:       handleMetaStatusLogged,
     onTopicoDocumentLogged:   handleTopicoDocumentLogged,
+    onDocumentSubmissionsStatusChanged: handleDocumentSubmissionsStatusChanged,
   });
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1473,6 +1493,23 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
             <Plus size={16} />
             Novo Tema
           </Button>
+        )}
+      </div>
+
+      <div
+        role="status"
+        aria-live="polite"
+        className={
+          submissionsPaused
+            ? "flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400"
+            : "sr-only"
+        }
+      >
+        {submissionsPaused && (
+          <>
+            <AlertCircle size={16} />
+            <span className="font-medium">Envio de documentos encerrado.</span>
+          </>
         )}
       </div>
 
@@ -1707,6 +1744,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
                       <TopicoCard
                         key={t.id}
                         topico={t}
+                        submissionsPaused={submissionsPaused}
                         liveStatuses={liveStatuses}
                         documents={topicoDocumentos.get(t.id) ?? []}
                         onDocumentsChange={handleDocumentsChange}

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
 import {
-  Plug, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Loader2, ExternalLink,
+  Plug, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Loader2, ExternalLink, PauseCircle, PlayCircle,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useMetaHub, DocumentSubmissionsStatusPayload } from "@/hooks/useMetaHub";
 import { toast } from "sonner";
 
 interface DriveStatus {
@@ -31,6 +33,35 @@ export function IntegracoesView() {
   const [loading, setLoading]       = useState(true);
   const [authorizing, setAuthorizing] = useState(false);
 
+  const [subStatus, setSubStatus]     = useState<DocumentSubmissionsStatusPayload | null>(null);
+  const [subLoading, setSubLoading]   = useState(true);
+  const [subToggling, setSubToggling] = useState(false);
+
+  async function fetchSubStatus() {
+    setSubLoading(true);
+    try {
+      const r = await api.get<DocumentSubmissionsStatusPayload>("/document-submissions/status");
+      setSubStatus(r.data);
+    } catch {
+      toast.error("Erro ao carregar status dos envios de documentos.");
+    } finally {
+      setSubLoading(false);
+    }
+  }
+
+  async function handleToggleSubmissions(checked: boolean) {
+    setSubToggling(true);
+    try {
+      const r = await api.post<DocumentSubmissionsStatusPayload>("/document-submissions/status", { isPaused: checked });
+      setSubStatus(r.data);
+      toast.success(checked ? "Envios de documentos pausados." : "Envios de documentos liberados.");
+    } catch {
+      toast.error("Erro ao alterar o status dos envios.");
+    } finally {
+      setSubToggling(false);
+    }
+  }
+
   async function fetchStatus() {
     setLoading(true);
     try {
@@ -43,8 +74,13 @@ export function IntegracoesView() {
     }
   }
 
+  useMetaHub({
+    onDocumentSubmissionsStatusChanged: (payload) => setSubStatus(payload),
+  });
+
   useEffect(() => {
     fetchStatus();
+    fetchSubStatus();
     // Callback do OAuth volta com ?google_drive=ok — mostra toast e limpa query
     const qs = new URLSearchParams(window.location.search);
     if (qs.get("google_drive") === "ok") {
@@ -68,14 +104,6 @@ export function IntegracoesView() {
       toast.error("Erro ao iniciar autorização.");
       setAuthorizing(false);
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-48">
-        <Loader2 size={24} className="animate-spin text-primary" />
-      </div>
-    );
   }
 
   const s = status;
@@ -109,72 +137,153 @@ export function IntegracoesView() {
         transition={{ duration: 0.2 }}
         className="bg-white dark:bg-slate-900 border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col gap-5"
       >
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 size={24} className="animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Plug size={20} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-foreground">Google Drive</h3>
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badge.color}`}>
+                    {badge.icon}
+                    {badge.label}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Usado para armazenar os documentos anexados a tópicos e metas.
+                  O token de atualização precisa ser renovado periodicamente.
+                </p>
+              </div>
+            </div>
+
+            {/* Status grid */}
+            {s?.configured && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <InfoRow label="Emitido em"   value={formatDate(s.issuedAt)} />
+                <InfoRow label="Expira em"    value={formatDate(s.expiresAt)} />
+                <InfoRow
+                  label="Tempo restante"
+                  value={
+                    s.isExpired
+                      ? "Expirado"
+                      : `${s.daysUntilExpiry ?? 0} dia(s)`
+                  }
+                  tone={state === "error" ? "error" : state === "warn" ? "warn" : "ok"}
+                />
+              </div>
+            )}
+
+            {!s?.configured && (
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-border/50 p-4 text-sm text-muted-foreground">
+                Nenhum refresh token registrado. Clique em <b>Reautorizar Google Drive</b> para conceder acesso.
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-1">
+              <button
+                onClick={handleAuthorize}
+                disabled={authorizing}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {authorizing ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={15} />}
+                Reautorizar Google Drive
+              </button>
+              <button
+                onClick={fetchStatus}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-border/50 text-muted-foreground hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+              >
+                <RefreshCw size={14} />
+                Atualizar status
+              </button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Ao clicar em reautorizar você será redirecionado para o Google.
+              Após autorizar, o novo token é persistido automaticamente e todos os uploads voltam a funcionar sem redeploy.
+              Alertas de expiração são enviados para o e-mail de operação (<code>devsubg.smsrio@gmail.com</code>).
+            </p>
+          </>
+        )}
+      </motion.div>
+
+      {/* Pausar/liberar envios de documentos */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, delay: 0.05 }}
+        className="bg-white dark:bg-slate-900 border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col gap-5"
+      >
         <div className="flex items-start gap-4">
           <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Plug size={20} className="text-primary" />
+            {subStatus?.isPaused
+              ? <PauseCircle size={20} className="text-amber-500" />
+              : <PlayCircle size={20} className="text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base font-bold text-foreground">Google Drive</h3>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badge.color}`}>
-                {badge.icon}
-                {badge.label}
-              </span>
+              <h3 className="text-base font-bold text-foreground">Envios de documentos</h3>
+              {subStatus === null && !subLoading ? (
+                <>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-slate-400/10 text-slate-500 border-slate-400/20">
+                    <XCircle size={14} />
+                    Status desconhecido
+                  </span>
+                  <button
+                    onClick={fetchSubStatus}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <RefreshCw size={11} />
+                    Atualizar status
+                  </button>
+                </>
+              ) : (
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                  subStatus?.isPaused
+                    ? "bg-amber-400/10 text-amber-500 border-amber-400/20"
+                    : "bg-emerald-400/10 text-emerald-500 border-emerald-400/20"
+                }`}>
+                  {subStatus?.isPaused ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+                  {subStatus?.isPaused ? "Pausados" : "Abertos"}
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Usado para armazenar os documentos anexados a tópicos e metas.
-              O token de atualização precisa ser renovado periodicamente.
+              Controla se analistas e aprovadores podem enviar, reenviar, aprovar, devolver, confirmar ou excluir documentos.
             </p>
           </div>
         </div>
 
-        {/* Status grid */}
-        {s?.configured && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <InfoRow label="Emitido em"   value={formatDate(s.issuedAt)} />
-            <InfoRow label="Expira em"    value={formatDate(s.expiresAt)} />
-            <InfoRow
-              label="Tempo restante"
-              value={
-                s.isExpired
-                  ? "Expirado"
-                  : `${s.daysUntilExpiry ?? 0} dia(s)`
-              }
-              tone={state === "error" ? "error" : state === "warn" ? "warn" : "ok"}
-            />
+        {subLoading ? (
+          <div className="flex items-center justify-center h-16">
+            <Loader2 size={20} className="animate-spin text-primary" />
           </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-border/40 p-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Pausar envios de documentos</p>
+                {subStatus?.updatedByUserName && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Última alteração por {subStatus.updatedByUserName} em {formatDate(subStatus.updatedAt ?? undefined)}
+                  </p>
+                )}
+              </div>
+              <Switch
+                checked={subStatus?.isPaused ?? false}
+                disabled={subToggling || subStatus === null}
+                onCheckedChange={handleToggleSubmissions}
+                aria-label="Pausar envios de documentos"
+              />
+            </div>
+          </>
         )}
-
-        {!s?.configured && (
-          <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-border/50 p-4 text-sm text-muted-foreground">
-            Nenhum refresh token registrado. Clique em <b>Reautorizar Google Drive</b> para conceder acesso.
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-1">
-          <button
-            onClick={handleAuthorize}
-            disabled={authorizing}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-          >
-            {authorizing ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={15} />}
-            Reautorizar Google Drive
-          </button>
-          <button
-            onClick={fetchStatus}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-border/50 text-muted-foreground hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-          >
-            <RefreshCw size={14} />
-            Atualizar status
-          </button>
-        </div>
-
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Ao clicar em reautorizar você será redirecionado para o Google.
-          Após autorizar, o novo token é persistido automaticamente e todos os uploads voltam a funcionar sem redeploy.
-          Alertas de expiração são enviados para o e-mail de operação (<code>devsubg.smsrio@gmail.com</code>).
-        </p>
       </motion.div>
     </div>
   );
