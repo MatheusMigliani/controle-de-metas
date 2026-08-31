@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
+import {
+  canConfirmDocument,
+  canDeleteDocument,
+  canReuploadDocument,
+  canReviewDocuments,
+  canUploadDocuments,
+} from "@/lib/document-submissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronRight, Target, Clock, CheckCircle2, RotateCcw, AlertCircle, Loader2, Check, Plus, Radio, Paperclip, FileText, Trash2, Upload, ThumbsUp, ThumbsDown, RefreshCw, ExternalLink, History, Pencil } from "lucide-react";
@@ -370,9 +377,10 @@ interface TopicoCardProps {
   liveDocLogs:       Map<string, DocumentoLog>;
   liveMetaLogs:      Map<string, MetaStatusLog>;
   defaultExpanded?:  boolean;
+  submissionsPaused: boolean;
 }
 
-function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs, defaultExpanded }: TopicoCardProps) {
+function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents, onDocumentsChange, liveDocLogs, liveMetaLogs, defaultExpanded, submissionsPaused }: TopicoCardProps) {
   const { user } = useAuth();
   const [expanded, setExpanded]         = useState(defaultExpanded ?? false);
   const [hasFetched, setHasFetched]     = useState(false);
@@ -416,19 +424,15 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
   const total = topico.metas.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const isApprover     = user?.role === "Admin" || user?.role === "Aprovador";
-  const canUpload      = user?.role === "Admin" || user?.role === "Analista" || user?.role === "Aprovador";
+  const isApprover     = canReviewDocuments(user?.role, submissionsPaused);
+  const canUpload       = canUploadDocuments(user?.role, submissionsPaused);
   const canViewHistory = user?.role === "Admin" || user?.role === "Aprovador";
 
-  const canDelete = (doc: TopicoDocumento) => {
-    if (user?.role === "Admin") return true;
-    if (doc.status === "Aprovado") return false;
-    return doc.uploadedByUserId === user?.userId;
-  };
+  const canDelete = (doc: TopicoDocumento) =>
+    canDeleteDocument(doc.status, doc.uploadedByUserId, user?.userId, user?.role, submissionsPaused);
 
   const canReupload = (doc: TopicoDocumento) =>
-    doc.status === "Devolvido" &&
-    (user?.role === "Admin" || doc.uploadedByUserId === user?.userId);
+    canReuploadDocument(doc.status, doc.uploadedByUserId, user?.userId, user?.role, submissionsPaused);
 
   // Lazy-fetch documents on first expand
   useEffect(() => {
@@ -1102,8 +1106,7 @@ function TopicoCard({ topico, onAddMeta, onTopicUpdated, liveStatuses, documents
                             {/* Row 4: action buttons + histórico */}
                             <div className="ml-11 flex items-center gap-2 flex-wrap mt-1">
                               {/* Confirm — analista original ou Admin quando aguardando confirmação */}
-                              {doc.status === "PendenteConfirmacaoAnalista" &&
-                               (user?.userId === doc.uploadedByUserId || user?.role === "Admin") && (
+                              {canConfirmDocument(doc.status, doc.uploadedByUserId, user?.userId, user?.role, submissionsPaused) && (
                                 <button
                                   onClick={() => handleConfirm(doc.id)}
                                   disabled={approvingId === doc.id || isReturning || reuploadingId !== null || deletingId !== null}
