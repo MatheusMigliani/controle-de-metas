@@ -21,6 +21,11 @@ describe("canUploadDocuments", () => {
   it("nega qualquer role quando os envios estão pausados", () => {
     expect(canUploadDocuments("Admin", true)).toBe(false);
   });
+
+  it("nega quando o usuário não tem role ou está pendente", () => {
+    expect(canUploadDocuments(undefined, false)).toBe(false);
+    expect(canUploadDocuments("Pending", false)).toBe(false);
+  });
 });
 
 describe("canReviewDocuments", () => {
@@ -35,6 +40,11 @@ describe("canReviewDocuments", () => {
 
   it("nega quando pausado", () => {
     expect(canReviewDocuments("Aprovador", true)).toBe(false);
+  });
+
+  it("nega quando o usuário não tem role ou está pendente", () => {
+    expect(canReviewDocuments(undefined, false)).toBe(false);
+    expect(canReviewDocuments("Pending", false)).toBe(false);
   });
 });
 
@@ -58,6 +68,11 @@ describe("canReuploadDocument", () => {
   it("nega quando pausado", () => {
     expect(canReuploadDocument("Devolvido", "user-1", "user-1", "Admin", true)).toBe(false);
   });
+
+  it("nega quando o usuário não tem role ou está pendente", () => {
+    expect(canReuploadDocument("Devolvido", "user-1", "user-2", undefined, false)).toBe(false);
+    expect(canReuploadDocument("Devolvido", "user-1", "user-2", "Pending", false)).toBe(false);
+  });
 });
 
 describe("canDeleteDocument", () => {
@@ -76,6 +91,11 @@ describe("canDeleteDocument", () => {
   it("nega quando pausado, mesmo para Admin", () => {
     expect(canDeleteDocument("PendenteAprovacao", "user-1", "user-2", "Admin", true)).toBe(false);
   });
+
+  it("nega quando o usuário não tem role ou está pendente", () => {
+    expect(canDeleteDocument("PendenteAprovacao", "user-1", "user-2", undefined, false)).toBe(false);
+    expect(canDeleteDocument("PendenteAprovacao", "user-1", "user-2", "Pending", false)).toBe(false);
+  });
 });
 
 describe("canConfirmDocument", () => {
@@ -93,5 +113,10 @@ describe("canConfirmDocument", () => {
 
   it("nega quando pausado", () => {
     expect(canConfirmDocument("PendenteConfirmacaoAnalista", "user-1", "user-1", "Admin", true)).toBe(false);
+  });
+
+  it("nega quando o usuário não tem role ou está pendente", () => {
+    expect(canConfirmDocument("PendenteConfirmacaoAnalista", "user-1", "user-2", undefined, false)).toBe(false);
+    expect(canConfirmDocument("PendenteConfirmacaoAnalista", "user-1", "user-2", "Pending", false)).toBe(false);
   });
 });
