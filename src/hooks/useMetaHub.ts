@@ -76,6 +76,13 @@ export interface NotificacaoPayload {
   criadoEm: string;
 }
 
+export interface DocumentSubmissionsStatusPayload {
+  isPaused:          boolean;
+  updatedByUserId:   string | null;
+  updatedByUserName: string | null;
+  updatedAt:         string | null;
+}
+
 interface UseMetaHubOptions {
   onMetaStatusChanged?:      (payload: MetaStatusChangedPayload) => void;
   onMetaCreated?:            (payload: MetaCreatedPayload) => void;
@@ -86,6 +93,7 @@ interface UseMetaHubOptions {
   onTopicoDocumentLogged?:   (payload: TopicoDocumentLoggedPayload) => void;
   onUserRoleLogged?:         (payload: UserRoleLoggedPayload) => void;
   onNotificacaoRecebida?:    (payload: NotificacaoPayload) => void;
+  onDocumentSubmissionsStatusChanged?: (payload: DocumentSubmissionsStatusPayload) => void;
 }
 
 // Module-level variables to share connection across remounts (fixes double/triple /negotiate in dev)
@@ -103,6 +111,7 @@ export function useMetaHub({
   onTopicoDocumentLogged,
   onUserRoleLogged,
   onNotificacaoRecebida,
+  onDocumentSubmissionsStatusChanged,
 }: UseMetaHubOptions) {
   const onStatusRef            = useRef(onMetaStatusChanged);
   const onCreatedRef           = useRef(onMetaCreated);
@@ -113,6 +122,7 @@ export function useMetaHub({
   const onDocLoggedRef         = useRef(onTopicoDocumentLogged);
   const onUserRoleLoggedRef    = useRef(onUserRoleLogged);
   const onNotificacaoRef       = useRef(onNotificacaoRecebida);
+  const onSubmissionsStatusRef = useRef(onDocumentSubmissionsStatusChanged);
 
   useEffect(() => { onStatusRef.current         = onMetaStatusChanged;     }, [onMetaStatusChanged]);
   useEffect(() => { onCreatedRef.current        = onMetaCreated;           }, [onMetaCreated]);
@@ -123,6 +133,7 @@ export function useMetaHub({
   useEffect(() => { onDocLoggedRef.current      = onTopicoDocumentLogged;  }, [onTopicoDocumentLogged]);
   useEffect(() => { onUserRoleLoggedRef.current = onUserRoleLogged;        }, [onUserRoleLogged]);
   useEffect(() => { onNotificacaoRef.current    = onNotificacaoRecebida;   }, [onNotificacaoRecebida]);
+  useEffect(() => { onSubmissionsStatusRef.current = onDocumentSubmissionsStatusChanged; }, [onDocumentSubmissionsStatusChanged]);
 
   useEffect(() => {
     subscribers++;
@@ -157,6 +168,7 @@ export function useMetaHub({
     const handleDocLogged   = (p: TopicoDocumentLoggedPayload)    => onDocLoggedRef.current?.(p);
     const handleRoleLogged  = (p: UserRoleLoggedPayload)          => onUserRoleLoggedRef.current?.(p);
     const handleNotificacao = (p: NotificacaoPayload)             => onNotificacaoRef.current?.(p);
+    const handleSubmissionsStatus = (p: DocumentSubmissionsStatusPayload) => onSubmissionsStatusRef.current?.(p);
 
     globalConnection.on("metaStatusChanged",     handleStatus);
     globalConnection.on("metaCreated",           handleCreated);
@@ -167,6 +179,7 @@ export function useMetaHub({
     globalConnection.on("topicoDocumentLogged",  handleDocLogged);
     globalConnection.on("userRoleLogged",        handleRoleLogged);
     globalConnection.on("notificacaoRecebida",   handleNotificacao);
+    globalConnection.on("documentSubmissionsStatusChanged", handleSubmissionsStatus);
 
     return () => {
       if (globalConnection) {
@@ -179,6 +192,7 @@ export function useMetaHub({
         globalConnection.off("topicoDocumentLogged",  handleDocLogged);
         globalConnection.off("userRoleLogged",        handleRoleLogged);
         globalConnection.off("notificacaoRecebida",   handleNotificacao);
+        globalConnection.off("documentSubmissionsStatusChanged", handleSubmissionsStatus);
       }
 
       subscribers--;
