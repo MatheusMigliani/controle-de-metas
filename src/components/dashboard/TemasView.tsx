@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetorAutocomplete } from "@/components/ui/SetorAutocomplete";
 import { toast } from "sonner";
-import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload, MetaStatusLoggedPayload, TopicoDocumentLoggedPayload, UserRoleLoggedPayload } from "@/hooks/useMetaHub";
+import { useMetaHub, MetaStatus as LiveMetaStatus, TopicoDocumentoPayload, TopicoDocumentoRemovedPayload, MetaStatusLoggedPayload, TopicoDocumentLoggedPayload, UserRoleLoggedPayload, DocumentSubmissionsStatusPayload } from "@/hooks/useMetaHub";
 import { Textarea } from "@/components/ui/textarea";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1252,6 +1252,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
   const [liveStatuses, setLiveStatuses]       = useState<Map<string, MetaStatus>>(new Map());
   const [topicoDocumentos, setTopicoDocumentos] = useState<Map<string, TopicoDocumento[]>>(new Map());
   const [hubConnected, setHubConnected] = useState(false);
+  const [submissionsPaused, setSubmissionsPaused] = useState(false);
 
   // Auto-expand tema + tópico when navigating from a notification/email link
   useEffect(() => {
@@ -1259,6 +1260,12 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
     const tema = temas.find((t) => t.topicos.some((tp) => tp.id === targetTopicoId));
     if (tema) setExpanded(tema.id);
   }, [targetTopicoId, temas]);
+
+  useEffect(() => {
+    api.get<DocumentSubmissionsStatusPayload>("/document-submissions/status")
+      .then((r) => setSubmissionsPaused(r.data.isPaused))
+      .catch(() => {});
+  }, []);
 
   // New Theme state
   const [isTemaDialogOpen, setIsTemaDialogOpen] = useState(false);
@@ -1338,6 +1345,10 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
     setLiveDocLogs((prev) => new Map(prev).set(payload.docId, payload.log));
   }, []);
 
+  const handleDocumentSubmissionsStatusChanged = useCallback((payload: DocumentSubmissionsStatusPayload) => {
+    setSubmissionsPaused(payload.isPaused);
+  }, []);
+
   useMetaHub({
     onMetaStatusChanged:      handleMetaStatusChanged,
     onMetaCreated:            handleMetaCreated,
@@ -1346,6 +1357,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
     onTopicoDocumentUpdated:  handleTopicoDocumentUpdated,
     onMetaStatusLogged:       handleMetaStatusLogged,
     onTopicoDocumentLogged:   handleTopicoDocumentLogged,
+    onDocumentSubmissionsStatusChanged: handleDocumentSubmissionsStatusChanged,
   });
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1475,6 +1487,13 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
           </Button>
         )}
       </div>
+
+      {submissionsPaused && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <AlertCircle size={16} />
+          <span className="font-medium">Envios de documentos temporariamente pausados.</span>
+        </div>
+      )}
 
       {/* Create Tema Dialog */}
       <Dialog open={isTemaDialogOpen} onOpenChange={setIsTemaDialogOpen}>
@@ -1707,6 +1726,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
                       <TopicoCard
                         key={t.id}
                         topico={t}
+                        submissionsPaused={submissionsPaused}
                         liveStatuses={liveStatuses}
                         documents={topicoDocumentos.get(t.id) ?? []}
                         onDocumentsChange={handleDocumentsChange}
