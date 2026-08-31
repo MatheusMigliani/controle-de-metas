@@ -1508,7 +1508,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
         {submissionsPaused && (
           <>
             <AlertCircle size={16} />
-            <span className="font-medium">Envios de documentos temporariamente pausados.</span>
+            <span className="font-medium">Envio de documentos encerrado.</span>
           </>
         )}
       </div>
