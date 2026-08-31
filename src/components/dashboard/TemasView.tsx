@@ -1489,7 +1489,7 @@ export function TemasView({ targetTopicoId }: { targetTopicoId?: string }) {
       </div>
 
       {submissionsPaused && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+        <div role="status" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertCircle size={16} />
           <span className="font-medium">Envios de documentos temporariamente pausados.</span>
         </div>
